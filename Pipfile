@@ -7,9 +7,8 @@ verify_ssl = true
 
 [packages]
 numpy = "*"
-h5py = "*"
 open3d = "*"
-seaborn = "*"
+tracking = {editable = true, path = "."}
 
 [requires]
 python_version = "3.8"
