@@ -2,7 +2,7 @@
 import numpy as np
 import open3d as o3d
 
-from tracking.data.load import load_point_clouds
+from tracking.data.load import load_point_clouds, load_detections
 
 
 data_files = ["data/data_109.h5",
@@ -21,14 +21,21 @@ def normalize(vector):
 
 
 pclouds = [load_point_clouds(file) for file in data_files]
+camera_detections = [load_detections(file) for file in data_files]
 
 visualizer = o3d.visualization.Visualizer()
 visualizer.create_window(width=800, height=600)
 
 # Add point cloud objects to be used in render
-geometries = [next(pcloud).crop(bounding_box) for pcloud in pclouds]
-for geometry in geometries:
+pc_geometries = [next(pcloud).crop(bounding_box) for pcloud in pclouds]
+for geometry in pc_geometries:
     visualizer.add_geometry(geometry)
+
+# Add detection objects to be used in render
+det_geometries = [next(detections) for detections in camera_detections]
+for geometries in det_geometries:
+    for geometry in geometries:
+        visualizer.add_geometry(geometry)
 
 # Set default camera view
 front       = np.asarray((3.0, 4.0, -1.0))
@@ -45,13 +52,30 @@ view_control.set_up(camera_up)
 view_control.set_zoom(zoom)
 view_control.translate(150, 0)
 
+render_options = visualizer.get_render_option()
+render_options.line_width = 5.0
+render_options.point_size = 2.0
+
 for i in range(800):
     # Loop over 800 frames
-    for pcloud, geometry in zip(pclouds, geometries):
+    for pcloud, geometry in zip(pclouds, pc_geometries):
         cur_pcloud = next(pcloud).crop(bounding_box)
         geometry.points = cur_pcloud.points
         geometry.colors = cur_pcloud.colors
         visualizer.update_geometry(geometry)
+    
+    for geometries in det_geometries:
+        for geometry in geometries:
+            visualizer.remove_geometry(geometry, False)
+
+    det_geometries = []
+
+    for detections in camera_detections:
+        cur_detections = next(detections)
+        for detection in cur_detections:
+            visualizer.add_geometry(detection, False)
+
+        det_geometries += [cur_detections]
 
     visualizer.poll_events()
     visualizer.update_renderer()

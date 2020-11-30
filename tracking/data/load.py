@@ -46,3 +46,28 @@ def load_point_clouds(hdf5file, start_frame=0, palette=seaborn_palette):
         pcloud.colors = o3d.utility.Vector3dVector(colors_painted)
 
         yield pcloud
+
+
+def load_detections(hdf5file, start_frame=0):
+    camera = h5py.File(hdf5file, 'r')
+
+    frames = itertools.cycle(range(start_frame, len(camera["Sequence"])))
+
+    for frame in frames:
+        detections = camera["Sequence"][str(frame)]["Detections"]
+
+        lines = []
+        for detection in detections:
+            mesh_box = o3d.geometry.TriangleMesh.create_box(width=detection["Length"],
+                                                            height=detection["Width"],
+                                                            depth=detection["Height"])
+
+            mesh_box.translate((-detection["Length"] / 2, -detection["Width"] / 2, -detection["Height"] / 2))
+            rotation = o3d.geometry.TriangleMesh.get_rotation_matrix_from_axis_angle((0.0, 0.0, detection["Angle"]))
+            mesh_box.rotate(rotation, (0.0, 0.0, 0.0))
+            mesh_box.translate(np.ndarray(shape=(3,1), dtype=np.float64, buffer=detection["Pos"]))
+
+            line_box = o3d.geometry.LineSet.create_from_triangle_mesh(mesh_box)
+            lines += [line_box]
+        
+        yield lines
