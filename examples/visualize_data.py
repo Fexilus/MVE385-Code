@@ -20,7 +20,7 @@ def normalize(vector):
     return vector / np.linalg.norm(vector)
 
 
-pclouds = [load_point_clouds(file) for file in data_files]
+pclouds = [load_point_clouds(file, min_security=5) for file in data_files]
 camera_detections = [load_detections(file) for file in data_files]
 
 visualizer = o3d.visualization.Visualizer()
@@ -52,24 +52,27 @@ view_control.set_up(camera_up)
 view_control.set_zoom(zoom)
 view_control.translate(150, 0)
 
+# Set default render options
 render_options = visualizer.get_render_option()
 render_options.line_width = 5.0
 render_options.point_size = 2.0
 
 for i in range(800):
-    # Loop over 800 frames
+    # Update point clouds
     for pcloud, geometry in zip(pclouds, pc_geometries):
         cur_pcloud = next(pcloud).crop(bounding_box)
         geometry.points = cur_pcloud.points
         geometry.colors = cur_pcloud.colors
         visualizer.update_geometry(geometry)
-    
+
+    # Remove old detections
     for geometries in det_geometries:
         for geometry in geometries:
             visualizer.remove_geometry(geometry, False)
 
     det_geometries = []
 
+    # Add new detections
     for detections in camera_detections:
         cur_detections = next(detections)
         for detection in cur_detections:
@@ -77,5 +80,6 @@ for i in range(800):
 
         det_geometries += [cur_detections]
 
+    # Update frame
     visualizer.poll_events()
     visualizer.update_renderer()
