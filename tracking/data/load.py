@@ -25,13 +25,13 @@ def load_point_clouds(hdf5file, start_frame=0, palette=seaborn_palette):
 
     dataset_color = np.asarray(next(palette))
 
+    num_points = camera["Sequence"]["0"]["Image"].size
+
     for frame in frames:
         # Transform coordinates to world space
-        cs_points = np.reshape(np.asarray(camera["Sequence"][str(frame)]["Points"]), (-1, 3))
-        cs_points_4 = np.ones((int(np.size(cs_points) / 3), 4))
-        cs_points_4[:,0:3] = cs_points
-        ws_points_4 = (np.matmul(cam2world, (cs_points_4).T)).T
-        ws_points = ws_points_4[:,0:3]
+        cs_points_4 = np.ones((num_points, 4))
+        cs_points_4[:,0:3] = np.reshape(np.asarray(camera["Sequence"][str(frame)]["Points"]), (-1, 3))
+        ws_points_4 = (np.matmul(cam2world, cs_points_4.T)).T
 
         # Color the points with image data, tinted by color from palette
         greyscale = np.reshape(np.asarray(camera["Sequence"][str(frame)]["Image"]) / 255,
@@ -42,7 +42,7 @@ def load_point_clouds(hdf5file, start_frame=0, palette=seaborn_palette):
 
         # Add data to open3d object
         pcloud = o3d.geometry.PointCloud()
-        pcloud.points = o3d.utility.Vector3dVector(ws_points)
+        pcloud.points = o3d.utility.Vector3dVector(ws_points_4[:,0:3])
         pcloud.colors = o3d.utility.Vector3dVector(colors_painted)
 
         yield pcloud
