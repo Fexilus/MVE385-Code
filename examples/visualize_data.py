@@ -2,7 +2,7 @@
 import numpy as np
 import open3d as o3d
 
-from tracking.data.load import load_point_clouds, load_detections
+from tracking.data.load import load_point_clouds, load_detections, load_tracks
 
 
 data_files = ["data/data_109.h5",
@@ -22,6 +22,7 @@ def normalize(vector):
 
 pclouds = [load_point_clouds(file, min_security=5) for file in data_files]
 camera_detections = [load_detections(file) for file in data_files]
+camera_tracks = [load_tracks(file) for file in data_files]
 
 visualizer = o3d.visualization.Visualizer()
 visualizer.create_window(width=800, height=600)
@@ -34,6 +35,12 @@ for geometry in pc_geometries:
 # Add detection objects to be used in render
 det_geometries = [next(detections) for detections in camera_detections]
 for geometries in det_geometries:
+    for geometry in geometries:
+        visualizer.add_geometry(geometry)
+
+# Add original track objects to be used in render
+tr_geometries = [next(tracks) for tracks in camera_tracks]
+for geometries in tr_geometries:
     for geometry in geometries:
         visualizer.add_geometry(geometry)
 
@@ -54,7 +61,7 @@ view_control.translate(150, 0)
 
 # Set default render options
 render_options = visualizer.get_render_option()
-render_options.line_width = 5.0
+render_options.line_width = 15.0
 render_options.point_size = 2.0
 
 for i in range(800):
@@ -79,6 +86,21 @@ for i in range(800):
             visualizer.add_geometry(detection, False)
 
         det_geometries += [cur_detections]
+    
+    # Remove old tracks
+    for geometries in tr_geometries:
+        for geometry in geometries:
+            visualizer.remove_geometry(geometry, False)
+
+    tr_geometries = []
+
+    # Add new detections
+    for tracks in camera_tracks:
+        cur_tracks = next(tracks)
+        for track in cur_tracks:
+            visualizer.add_geometry(track, False)
+
+        tr_geometries += [cur_tracks]
 
     # Update frame
     visualizer.poll_events()
