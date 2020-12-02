@@ -19,12 +19,12 @@ cropped_timestamps = [np.asarray(camera["Timestamp"])[0:min_num_frames]
 
 time_steps = [np.diff(np.asarray(camera["Timestamp"])) for camera in cameras]
 
-average_step_size = np.median(np.concatenate(time_steps))
+median_step_size = np.median(np.concatenate(time_steps))
 
 earliest_time = min([camera["Timestamp"][0] for camera in cameras])
 
-expected_end_time = average_step_size * min_num_frames
-expected_times = np.arange(0, expected_end_time, average_step_size)
+expected_end_time = median_step_size * min_num_frames
+expected_times = np.arange(0, expected_end_time, median_step_size)
 
 norm_frame_times = [cropped_timestamp - expected_times - earliest_time
                     for cropped_timestamp in cropped_timestamps]
@@ -32,6 +32,9 @@ norm_frame_times = [cropped_timestamp - expected_times - earliest_time
 plt.subplot()
 for norm_frame_time, file_name in zip(norm_frame_times, data_files):
     plt.plot(norm_frame_time, label=file_name)
+
+plt.hlines(median_step_size, 0, min_num_frames,
+           linestyles="dashed", label="Median step size")
 
 plt.xlabel("Frame number in dataset")
 plt.ylabel("Time difference compared to expected behavior (s)")
