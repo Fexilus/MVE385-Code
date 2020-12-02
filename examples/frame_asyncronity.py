@@ -30,10 +30,11 @@ norm_frame_times = [cropped_timestamp - expected_times - earliest_time
                     for cropped_timestamp in cropped_timestamps]
 
 plt.subplot()
-for norm_frame_time in norm_frame_times:
-    plt.plot(norm_frame_time)
+for norm_frame_time, file_name in zip(norm_frame_times, data_files):
+    plt.plot(norm_frame_time, label=file_name)
 
 plt.xlabel("Frame number in dataset")
 plt.ylabel("Time difference compared to expected behavior (s)")
+plt.legend()
 
 plt.show()
