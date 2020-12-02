@@ -13,7 +13,7 @@ The presentation and visualization of the computations is formatted as separate 
 The dependencies of these scripts are kept in `requirements.txt`.
 This includes a dependency on the package with the computational code, loaded in edit mode.
 Thus the scripts serve a secondary function as a testing environment during development.
-As the scripts are only necessary when presenting and developing the code, these dependencies does not have to be as neatly kept.
+As the scripts are only necessary when presenting and developing the code, these dependencies do not have to be as neatly kept.
 
 ## Usage
 To use only the package containing the computational code, install it using a build tool such as `setuptools` or `build`.
