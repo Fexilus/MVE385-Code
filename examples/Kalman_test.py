@@ -101,25 +101,6 @@ cov_current = np.array([[1, 0, 0, 0, 0, 0],
                         [0, 0, 0, 0, 1, 0],
                         [0, 0, 0, 0, 0, 1]])
 
-# Prediction #
-x_prediction = np.matmul(F,x_current) # + B*u
-cov_prediction = np.matmul(np.matmul(F,cov_current),F.transpose()) \
-                    + np.matmul(np.matmul(G,Q),G.transpose())
-
-# Update #
-measurement = single_obj_det[1,:] 
-measurement = np.matrix(measurement)
-
-# The innovation
-residual = measurement.T - np.matmul(H,x_prediction) # innovation
-residual_cov = R + np.matmul(H,np.matmul(cov_prediction,H.T)) # Should H be transposed?
-
-# Kalman gain
-W = np.matmul(cov_prediction, np.matmul(H.T, np.linalg.inv(residual_cov)))
-
-x_updated = x_prediction + np.matmul(W, residual)
-cov_updated = cov_prediction - np.matmul(W, np.matmul(residual_cov,W.transpose()))
-
 # Input single set of coordinatetes
 def convertToImageSpace(coordinates):
     coord_4 = np.ones(4)
@@ -136,7 +117,7 @@ def convertToImageSpace(coordinates):
     return(ims_coord)
 
 # Make a visualization of predictions, updates and measurements
-def visualizePredictions(measurements,x_prediction,x_updated,camera):
+def visualizePredictions(measurements,x_prediction,x_updated,camera,frame):
     x_prediction = x_prediction[0::2]
     x_updated = x_updated[0::2]
     x_prediction = x_prediction.flatten()
@@ -147,7 +128,7 @@ def visualizePredictions(measurements,x_prediction,x_updated,camera):
     xUpd_imSpace = convertToImageSpace(x_updated)
 
     plt.pyplot.figure()
-    image = camera['Sequence'][str(1)]['Image']
+    image = camera['Sequence'][str(frame)]['Image']
     imArr = np.zeros(image.shape)
     image.read_direct(imArr)
     plt.pyplot.imshow(imArr, cmap='gray')
@@ -158,4 +139,32 @@ def visualizePredictions(measurements,x_prediction,x_updated,camera):
     plt.pyplot.show()
     #plt.pyplot.close()
 
-visualizePredictions(measurement,x_prediction,x_updated,camera)
+for i in range(20):
+    # Do a prediction and an update 
+
+    # Prediction #
+    x_prediction = np.matmul(F,x_current) # + B*u
+    cov_prediction = np.matmul(np.matmul(F,cov_current),F.transpose()) \
+                        + np.matmul(np.matmul(G,Q),G.transpose())
+
+    # Update #
+    measurement = single_obj_det[i,:] 
+    measurement = np.matrix(measurement)
+
+    # The innovation
+    residual = measurement.T - np.matmul(H,x_prediction) # innovation
+    residual_cov = R + np.matmul(H,np.matmul(cov_prediction,H.T)) # Should H be transposed?
+
+    # Kalman gain
+    W = np.matmul(cov_prediction, np.matmul(H.T, np.linalg.inv(residual_cov)))
+
+    x_updated = x_prediction + np.matmul(W, residual)
+    cov_updated = cov_prediction - np.matmul(W, np.matmul(residual_cov,W.transpose()))
+
+    # Visualize the position updates
+    frame = i
+    visualizePredictions(measurement,x_prediction,x_updated,camera,frame)
+    
+    # Set current to update #
+    x_current = x_updated
+    cov_current = cov_updated
