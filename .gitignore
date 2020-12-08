@@ -1,2 +1,7 @@
 tracking.egg-info
 pip-wheel-metadata
+
+__pycache__
+
+Pipfile
+Pipfile.lock
