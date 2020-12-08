@@ -19,6 +19,11 @@ for i in range(20):
     detections = np.asarray([list(det[0]) for det in list(detections)])
     single_obj_det[i,:] = detections[single_obj_ind[i],:]
 
-visualization_gen = zip(basic.track(single_obj_det), range(20))
+timestamps = camera["Timestamp"][0:20]
+time_steps = np.insert(np.diff(timestamps), 0, np.median(timestamps))
+
+obj_track = basic.track(single_obj_det, time_steps)
+
+visualization_gen = zip(obj_track, range(20))
 for ((x_updated, x_prediction, measurement), frame) in visualization_gen:
     visualize_predictions(measurement, x_prediction, x_updated, camera, frame)

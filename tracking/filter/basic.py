@@ -36,27 +36,12 @@ def createStateVector(pos,vel):
     return(a)
 
 
-def track(single_obj_det):
+def track(single_obj_det, time_steps):
     """Track a single object with a basic Kalman filter."""
     # Initilize positions and velocities
-    # TODO
-    dt = 0.1
-    velocity = 2#*np.ones((3,1)) # dt*velocity is how far the object moved between two frames
+    init_velocity = 2#*np.ones((3,1)) # dt*init_velocity is how far the object moved between two frames
     pos_init = np.asarray(single_obj_det[0,:])
 
-    # Assume vector x = [px, vx, py, vy, pz, vz].T
-    F = np.array([[1, dt, 0,  0, 0,  0],
-                  [0,  1, 0,  0, 0,  0],
-                  [0,  0, 1, dt, 0,  0],
-                  [0,  0, 0,  1, 0,  0],
-                  [0,  0, 0,  0, 1, dt],
-                  [0,  0, 0,  0, 0,  1]]) # The dynamics model
-    G = np.array([[dt**2/2,       0,       0],
-                  [     dt,       0,       0],
-                  [      0, dt**2/2,       0],
-                  [      0,      dt,       0],
-                  [      0,       0, dt**2/2],
-                  [      0,       0,      dt]]) # To be multiplied with model noise v(x)  = [vx,vy,vz]
     H = np.array([[1, 0, 0, 0, 0, 0],
                   [0, 0, 1, 0, 0, 0],
                   [0, 0, 0, 0, 1, 0]]) # "Measurement model"
@@ -72,7 +57,7 @@ def track(single_obj_det):
                   [0, 0, 1]])
 
     pos_t = pos_init[..., None]
-    x_current = createStateVector(pos_t,velocity)
+    x_current = createStateVector(pos_t, init_velocity)
     cov_current = np.array([[1, 0, 0, 0, 0, 0],
                             [0, 1, 0, 0, 0, 0],
                             [0, 0, 1, 0, 0, 0],
@@ -80,19 +65,31 @@ def track(single_obj_det):
                             [0, 0, 0, 0, 1, 0],
                             [0, 0, 0, 0, 0, 1]])
 
-    for i in range(20):
-        # Do a prediction and an update 
+    for measurement, dt in zip(single_obj_det, time_steps):
+        # Assume vector x = [px, vx, py, vy, pz, vz].T
+        F = np.array([[1, dt, 0,  0, 0,  0],
+                      [0,  1, 0,  0, 0,  0],
+                      [0,  0, 1, dt, 0,  0],
+                      [0,  0, 0,  1, 0,  0],
+                      [0,  0, 0,  0, 1, dt],
+                      [0,  0, 0,  0, 0,  1]]) # The dynamics model
+        G = np.array([[dt**2/2,       0,       0],
+                      [     dt,       0,       0],
+                      [      0, dt**2/2,       0],
+                      [      0,      dt,       0],
+                      [      0,       0, dt**2/2],
+                      [      0,       0,      dt]]) # To be multiplied with model noise v(x)  = [vx,vy,vz]
+
         (x_prediction, cov_prediction) = predict(x_current, cov_current,
                                                  F, G, Q)
 
-        # Take new measurements
-        measurement = single_obj_det[i, :] 
+        # Reshape measurement
         measurement = np.matrix(measurement)
 
         (x_updated, cov_updated) = update(x_prediction, cov_prediction,
                                           measurement, H, R)
 
-        # Set current to update #
+        # Set current to update
         x_current = x_updated
         cov_current = cov_updated
 
