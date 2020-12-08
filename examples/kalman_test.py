@@ -1,7 +1,6 @@
 """Simple Kalman filter implementation for one view"""
 import h5py
 import numpy as np
-import matplotlib as plt
 
 from tracking.filter import basic
 from tracking.visualize.predictions import visualize_predictions
