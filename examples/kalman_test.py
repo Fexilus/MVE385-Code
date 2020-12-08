@@ -1,12 +1,9 @@
-## Simple Kalman filter implementation for one view ## 
-import itertools
-
+"""Simple Kalman filter implementation for one view"""
 import h5py
 import numpy as np
-import open3d as o3d
-import seaborn as sns
-from PIL import Image
 import matplotlib as plt
+
+from tracking.visualize.predictions import visualize_predictions
 
 
 # Not working for vector input, only matrix...
@@ -101,44 +98,6 @@ cov_current = np.array([[1, 0, 0, 0, 0, 0],
                         [0, 0, 0, 0, 1, 0],
                         [0, 0, 0, 0, 0, 1]])
 
-# Input single set of coordinatetes
-def convertToImageSpace(coordinates):
-    coord_4 = np.ones(4)
-    coord_4[0:3] = coordinates
-    cams_coord = (np.matmul(world2cam, coord_4.T)).T
-    cams_coord_4 = np.ones(4)
-    
-    cams_coord_4[0:3] = cams_coord[0:3]
-    ims_coord = (np.matmul(cam2im,cams_coord_4.T)).T
-    # Divide by z coordinate for some reason
-    ims_coord[0] = ims_coord[0]/ims_coord[2]
-    ims_coord[1] = ims_coord[1]/ims_coord[2]
-    ims_coord = ims_coord[0:2]
-    return(ims_coord)
-
-# Make a visualization of predictions, updates and measurements
-def visualizePredictions(measurements,x_prediction,x_updated,camera,frame):
-    x_prediction = x_prediction[0::2]
-    x_updated = x_updated[0::2]
-    x_prediction = x_prediction.flatten()
-    x_updated = x_updated.flatten()
-
-    measurement_imSpace = convertToImageSpace(measurements)
-    xPred_imSpace = convertToImageSpace(x_prediction)
-    xUpd_imSpace = convertToImageSpace(x_updated)
-
-    plt.pyplot.figure()
-    image = camera['Sequence'][str(frame)]['Image']
-    imArr = np.zeros(image.shape)
-    image.read_direct(imArr)
-    plt.pyplot.imshow(imArr, cmap='gray')
-    # plot points
-    plt.pyplot.scatter(measurement_imSpace[0],measurement_imSpace[1],c = 'blue')
-    plt.pyplot.scatter(xPred_imSpace[0],xPred_imSpace[1],c='red')
-    plt.pyplot.scatter(xUpd_imSpace[0],xUpd_imSpace[1],c = 'green')
-    plt.pyplot.show()
-    #plt.pyplot.close()
-
 for i in range(20):
     # Do a prediction and an update 
 
@@ -163,7 +122,7 @@ for i in range(20):
 
     # Visualize the position updates
     frame = i
-    visualizePredictions(measurement,x_prediction,x_updated,camera,frame)
+    visualize_predictions(measurement,x_prediction,x_updated,camera,frame)
     
     # Set current to update #
     x_current = x_updated
