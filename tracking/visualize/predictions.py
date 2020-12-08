@@ -1,3 +1,4 @@
+"""Visualize predictions in camera space"""
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -40,8 +41,13 @@ def visualize_predictions(measurements, x_prediction, x_updated, camera,
     image.read_direct(im_arr)
     plt.imshow(im_arr, cmap='gray')
     # plot points
-    plt.scatter(measurement_im_space[0], measurement_im_space[1], c = 'blue')
-    plt.scatter(x_pred_im_space[0], x_pred_im_space[1], c='red')
-    plt.scatter(x_upd_im_space[0], x_upd_im_space[1], c = 'green')
+    plt.scatter(measurement_im_space[0], measurement_im_space[1],
+                c = 'blue', label="Measurement")
+    plt.scatter(x_pred_im_space[0], x_pred_im_space[1],
+                c='red', label="Prediction")
+    plt.scatter(x_upd_im_space[0], x_upd_im_space[1],
+                c = 'green', label="A priori estimate")
+
+    plt.legend()
     plt.show()
     #plt.close()
