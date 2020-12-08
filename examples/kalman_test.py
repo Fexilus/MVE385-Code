@@ -6,38 +6,11 @@ import matplotlib as plt
 from tracking.visualize.predictions import visualize_predictions
 
 
-# Not working for vector input, only matrix...
-def visualization2D(detections,camera,world2cam,cam2im):
-    # Converting to camera view for visualization
-    for f in range(len(detections)):
-        detections_4 = np.ones((detections[f,:].shape[0],detections.shape[1]+1))
-        detections_4[:,0:3] = detections[f,:]
-        cams_det = (np.matmul(world2cam, detections_4.T)).T
-        cams_det_4 = np.ones((cams_det.shape[0],4))
-        cams_det_4[:,0:3] = cams_det[:,0:3]
-        ims_det = (np.matmul(cam2im,cams_det_4.T)).T
-        # Divide by z coordinate for some reason
-        ims_det[:,0] = ims_det[:,0]/ims_det[:,2]
-        ims_det[:,1] = ims_det[:,1]/ims_det[:,2]
-
-        # Show image
-        plt.pyplot.figure()
-        image = camera['Sequence'][str(f)]['Image']
-        imArr = np.zeros(image.shape)
-        image.read_direct(imArr)
-        plt.pyplot.imshow(imArr, cmap='gray')
-        # plot points
-        plt.pyplot.scatter(ims_det[2,0],ims_det[2,1])
-        plt.pyplot.show()
-        #plt.pyplot.close()
-
 # Step one: make a Kalman filter for single sensor for single object
-datafile = "tracking/data/data_109.h5"
+datafile = "data/data_109.h5"
 camera = h5py.File(datafile, 'r')
 single_obj_ind = [2, 3, 3, 4, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 2, 1, 1, 2, 1]
-single_obj_det = np.zeros((20,3))
-world2cam = np.asarray(camera['TMatrixWorldToCam'])
-cam2im = np.asarray(camera['ProjectionMatrix'])
+single_obj_det = np.zeros((20,3)) 
 
 # Extract single object detections
 for i in range(20):
