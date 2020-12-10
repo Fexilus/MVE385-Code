@@ -26,15 +26,15 @@ def associate_NN(prediction,detections,H,cov_prediction,R):
     return(closest_neighbour)
 
 
-def track_with_association(pos_init,camera):
+def track_with_association(pos_init,camera,nbr_of_frames):
     # Detections contain all measurements made at one timestep
     # Difference from track: must associate each prediction with a measurement,
     # can therefore only do one timestep at a tim
-    """For one time step: make a prediction, associate a measurement, and return the update"""
+    """For nbr_of_frames time steps: make a prediction, associate a measurement, and return the update"""
     # Initilize positions and velocities
     init_velocity = 2#*np.ones((3,1)) # dt*init_velocity is how far the object moved between two frames 
     pos_init = np.asarray(pos_init)
-    timestamps = camera["Timestamp"][0:20]
+    timestamps = camera["Timestamp"][0:nbr_of_frames]
     time_steps = np.insert(np.diff(timestamps), 0, np.median(timestamps))
 
     H = np.array([[1, 0, 0, 0, 0, 0],
@@ -103,6 +103,7 @@ def track_with_association(pos_init,camera):
 
 datafile = "tracking/data/data_109.h5"
 camera = h5py.File(datafile, 'r')
+nbr_of_frames = 50
 
 # Get initial detection of single object
 detections_0 = camera["Sequence"]["0"]["Detections"]
@@ -111,8 +112,8 @@ detections_0 = np.asarray([list(det[0]) for det in list(detections_0)])
 single_obj_det_start = detections_0[2,:]
 
 
-obj_track = track_with_association(single_obj_det_start,camera)
+obj_track = track_with_association(single_obj_det_start,camera,nbr_of_frames)
 
-visualization_gen = zip(obj_track, range(20))
+visualization_gen = zip(obj_track, range(nbr_of_frames))
 for ((x_updated, x_prediction, associated_detection), frame) in visualization_gen:
     visualize_predictions(associated_detection, x_prediction, x_updated, camera, frame)
