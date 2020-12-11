@@ -19,7 +19,7 @@ for i in range(20):
     single_obj_det[i,:] = detections[single_obj_ind[i],:]
 
 timestamps = camera["Timestamp"][0:20]
-time_steps = np.insert(np.diff(timestamps), 0, np.median(timestamps))
+time_steps = np.insert(np.diff(timestamps), 0, np.median(np.diff(timestamps)))
 
 obj_track = basic.track(single_obj_det, time_steps)
 
