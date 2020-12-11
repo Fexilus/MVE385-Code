@@ -46,7 +46,7 @@ def visualize_predictions(measurements, x_prediction, x_updated, camera,
     plt.scatter(x_pred_im_space[0], x_pred_im_space[1],
                 c='red', label="Prediction")
     plt.scatter(x_upd_im_space[0], x_upd_im_space[1],
-                c = 'green', label="A priori estimate")
+                c = 'green', label="A posteriori estimate")
 
     plt.legend()
     plt.show()
