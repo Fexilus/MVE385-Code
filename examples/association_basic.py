@@ -9,7 +9,7 @@ def associate_NN(prediction,detections,H,cov_prediction,R):
 
     for i in range(detections.shape[0]):
         m = detections[i,:]
-        innovation = m.T - np.matmul(H,prediction)
+        innovation = m.T - np.matmul(H,prediction.T)
         S = np.matmul(H,np.matmul(cov_prediction,H.T)) + R
         norm_innovation = np.matmul(innovation.T,np.matmul(np.linalg.inv(S),innovation))
         innovation_dist[i] = norm_innovation
@@ -98,6 +98,11 @@ def track_with_association(pos_init,camera,nbr_of_frames):
         # Set current to update
         x_current = x_updated # Only useful if we can loop through time steps
         cov_current = cov_updated
+        # yield only the position
+        x_prediction = x_prediction[0,0::2]
+        x_updated = x_updated[0,0::2]
+        x_prediction = x_prediction.flatten()
+        x_updated = x_updated.flatten()
 
         yield (x_updated, x_prediction, associated_detection)
 
