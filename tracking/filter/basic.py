@@ -4,7 +4,7 @@ import numpy as np
 
 def predict(x_current, cov_current, F, G, Q):
     """Predict new states of object."""
-    x_prediction = np.matmul(F, x_current) # + B*u
+    x_prediction = np.matmul(F, x_current.T).T # + B*u
     cov_prediction = np.matmul(np.matmul(F, cov_current), F.transpose()) \
                      + np.matmul(np.matmul(G, Q), G.transpose())
 
@@ -14,13 +14,13 @@ def predict(x_current, cov_current, F, G, Q):
 def update(x_prediction, cov_prediction, measurement, H, R):
     """Update prediction based on measurement."""
     # The innovation
-    residual = measurement.T - np.matmul(H,x_prediction) # innovation
+    residual = measurement - np.matmul(H,x_prediction.T).T # innovation
     residual_cov = R + np.matmul(H,np.matmul(cov_prediction,H.T)) # Should H be transposed?
 
     # Kalman gain
     W = np.matmul(cov_prediction, np.matmul(H.T, np.linalg.inv(residual_cov)))
 
-    x_updated = x_prediction + np.matmul(W, residual)
+    x_updated = x_prediction + np.matmul(W, residual.T).T
     cov_updated = cov_prediction - np.matmul(W, np.matmul(residual_cov,W.transpose()))
 
     return (x_updated, cov_updated)
@@ -28,10 +28,10 @@ def update(x_prediction, cov_prediction, measurement, H, R):
 
 def createStateVector(pos,vel):
     """Initialize a new state vector."""
-    a = np.full((6,1),vel)
-    a[0] = pos[0]
-    a[2] = pos[1]
-    a[4] = pos[2]
+    a = np.full((1,6),vel)
+    a[0][0] = pos[0]
+    a[0][2] = pos[1]
+    a[0][4] = pos[2]
 
     return(a)
 
@@ -82,9 +82,6 @@ def track(single_obj_det, time_steps):
 
         (x_prediction, cov_prediction) = predict(x_current, cov_current,
                                                  F, G, Q)
-
-        # Reshape measurement
-        measurement = np.matrix(measurement)
 
         (x_updated, cov_updated) = update(x_prediction, cov_prediction,
                                           measurement, H, R)
