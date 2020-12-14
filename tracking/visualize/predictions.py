@@ -22,11 +22,6 @@ def convert_to_image_space(coordinates, world2cam, cam2im):
 def visualize_predictions(measurements, x_prediction, x_updated, camera, 
                           frame):
     """Make a visualization of predictions, updates and measurements"""
-    x_prediction = x_prediction[0::2]
-    x_updated = x_updated[0::2]
-    x_prediction = x_prediction.flatten()
-    x_updated = x_updated.flatten()
-
     world2cam = np.asarray(camera['TMatrixWorldToCam'])
     cam2im = np.asarray(camera['ProjectionMatrix'])
 
