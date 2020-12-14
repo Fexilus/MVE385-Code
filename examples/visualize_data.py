@@ -6,13 +6,13 @@ from tracking.data.load import load_point_clouds, load_detections, load_tracks
 
 
 data_files = ["data/data_109.h5",
-              "data/data_130.h5",
-              "data/data_142.h5",
-              "data/data_143.h5"]
+              #"data/data_130.h5",
+              "data/data_142.h5"]#,
+              #"data/data_143.h5"]
 
 # Set a world space bounding box for the point clouds
 bounding_box = o3d.geometry.AxisAlignedBoundingBox(np.asarray((-50, -50, -50)),
-                                                   np.asarray(( 50,  50,  50)))
+                                                   np.asarray(( 50,  50,  10)))
 
 
 def normalize(vector):
