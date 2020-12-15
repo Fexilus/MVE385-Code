@@ -9,11 +9,9 @@ from tracking.association.association_tracking import associate_NN,initialize_tr
 # GENERATES: Tracks T_i with a set of tuples (x_k,y_k,z_k,t_k) indicating location ob object i at time t_k
 # (In line with article implementation)
 
-# 1. NN for multi-objects to create tracks T_i
-# 2. Add termination critera according to article
-# 3. Add initilizations for unassociated tracks
-
-
+# Loops through all frames:
+# At each time; gets all detections and associate these to make an update
+# Inlcudes termination critera and initilization of new tracks at each time step (according to article)
 
 datafile = "tracking/data/data_109.h5"
 camera = h5py.File(datafile, 'r')
@@ -31,11 +29,15 @@ cov_init = np.array([[1, 0, 0, 0, 0, 0],
                      [0, 0, 0, 1, 0, 0],
                      [0, 0, 0, 0, 1, 0],
                      [0, 0, 0, 0, 0, 1]])
+
 current_tracks = []
 current_cov = []
-terminated_tracks = []
+
 initialized_tracks = []
 initialized_cov = []
+
+terminated_tracks = []
+
 for i in range(detections_0.shape[0]):
     track_i_pos = detections_0[i,:]
     track_i_pos = np.asmatrix(track_i_pos)
@@ -46,7 +48,7 @@ for i in range(detections_0.shape[0]):
     # Initialize covariance matrices
     current_cov.append(cov_init)
 
-# Initialize values
+# Initialize values (currently for the basic Kalman filter)
 init_velocity = 2.0#*np.ones((3,1)) # dt*init_velocity is how far the object moved between two frames 
 timestamps = camera["Timestamp"][0:nbr_of_frames]
 time_steps = np.insert(np.diff(timestamps), 0, np.median(timestamps))
@@ -66,12 +68,11 @@ R = np.array([[1, 0, 0],
 
 
 for f in range(nbr_of_frames):
-    #if(len(current_tracks)==0):
-    #    break
 
     next_detections = camera["Sequence"][str(f+1)]["Detections"]
     next_detections = np.asarray([list(det[0]) for det in list(next_detections)])
     next_detections = np.matrix(next_detections)
+    
     # Assume vector x = [px, vx, py, vy, pz, vz].T
     dt = time_steps[i+1]
     F = np.array([[1, dt, 0,  0, 0,  0],    
@@ -88,33 +89,29 @@ for f in range(nbr_of_frames):
                   [      0,       0,      dt]]) # To be multiplied with model noise v(x)  = [vx,vy,vz]
     
     current_tracks, terminated_tracks,associated_detections = track_all_objects(current_tracks,current_cov,init_velocity,F,G,Q,R,H,
-                                                            next_detections,terminated_tracks,f)
+                                                            next_detections,terminated_tracks,f+1)
     
-    # Track the tracks under initialization and add to current tracks if they survival for
+    # Track the tracks under initialization and add to current tracks if they survive for
     # three consecutive frames. 
     templist = []
     if (len(initialized_tracks)>0):
         initialized_tracks,temp_terminated,associated_detections = track_all_objects(initialized_tracks,initialized_cov,init_velocity,F,G,Q,R,H,
-                                                            next_detections,templist,f)
+                                                            next_detections,templist,f+1)
                         
         initialized_tracks,current_tracks,initialized_cov,current_cov = add_initialized_to_current_tracks(
-                                            initialized_tracks,current_tracks,initialized_cov,current_cov,f)
+                                            initialized_tracks,current_tracks,initialized_cov,current_cov,f+1)
 
 
-    # Check unassociated detections and mark these as initializing
-    new_tracks,new_cov = initialize_tracks(next_detections,associated_detections,cov_init,f)
+    # Check unassociated detections and add these to initializing
+    new_tracks,new_cov = initialize_tracks(next_detections,associated_detections,cov_init,f+1)
     initialized_tracks.extend(new_tracks)
     initialized_cov.extend(new_cov)
-    
-    # Remove all terminated tracks
-    #for index in sorted(tracks_to_remove,reverse = True):#i in range(len(tracks_to_remove)):
-    #    current_tracks.pop(index)
-    #Loop through frames
 
-print(terminated_tracks)
 
-# visalization
+# TODO: Save the list of all tracks
+print(terminated_tracks[3])
 exit()
+# visalization
 def visualize_track(track,camera):
     x = track[0:3]
     frame = int(track[-1])

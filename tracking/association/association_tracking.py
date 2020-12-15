@@ -104,6 +104,7 @@ def track_all_objects(current_tracks,current_cov,init_velocity,F,G,Q,R,H,next_de
         current_cov[o] = cov_updated
         # Loop through objects
     
+    # Remove all terminated tracks from current_tracks
     for index in sorted(tracks_to_remove,reverse = True):#i in range(len(tracks_to_remove)):
         current_tracks.pop(index)
     return(current_tracks,terminated_tracks,associated_detections)
