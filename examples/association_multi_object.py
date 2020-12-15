@@ -16,6 +16,97 @@ def count_times_unassociated(track):
         count = 1
     return count
 
+def initialize_tracks(next_detections,associated_detections,cov_init,f):
+    new_tracks = []
+    new_cov = []
+    for d in next_detections:
+        if(not any(np.array_equal(d, ind) for ind in associated_detections)):
+            track_d = np.zeros(4)
+            track_d[0:3] = d
+            track_d[-1] = f
+            new_tracks.append(track_d)
+            new_cov.append(cov_init)
+    return(new_tracks,new_cov)
+
+def track_all_objects(current_tracks,current_cov,init_velocity,F,G,Q,R,H,next_detections,terminated_tracks,frame):
+    tracks_to_remove = [] # Saves indices of tracks to terminate
+    associated_detections = [] # Saves list of all detections that has been associated to a track
+    
+    for o in range(len(current_tracks)):
+
+        if len(current_tracks[o]<=1):
+            pos = current_tracks[o].flatten()
+        else:
+            pos = current_tracks[o][-1,:].flatten() # Last posistion of object o
+        pos_t = pos[..., None]
+
+        x_current = createStateVector(pos_t, init_velocity) #x = [px, vx, py, vy, pz, vz].T
+        cov_o = current_cov[o]
+        
+        # Predict
+        (x_prediction, cov_prediction) = predict(x_current, cov_o, F, G, Q)
+
+        # Associate detection
+        associated_detection = associate_NN(x_prediction,next_detections,H,cov_prediction,R)
+        
+        # Check if association was made
+        if(np.count_nonzero(associated_detection) == 0):
+            # Don't make an update; there was no associated detection
+            # TODO: add termination only after third frame without association
+            o_track = current_tracks[o] 
+            terminated_tracks.append(o_track)
+            tracks_to_remove.append(o)
+            continue
+        
+        # Check if another track has already been associated to this detection
+        if(any(np.array_equal(associated_detection, ind) for ind in associated_detections)):
+            # Terminate both tracks that were associated to this detection and continue to next track
+            o_track = current_tracks[o] 
+            terminated_tracks.append(o_track)
+            tracks_to_remove.append(o)
+            
+            other_track_ind = [np.array_equal(associated_detection,i) for i in associated_detections].index(True)
+            other_track = current_tracks[other_track_ind]
+            terminated_tracks.append(other_track)
+            tracks_to_remove.append(other_track_ind)
+            continue
+        
+        associated_detections.append(associated_detection)
+        
+        # Make an update
+        (x_updated, cov_updated) = update(x_prediction, cov_prediction,
+                                          associated_detection, H, R)
+        
+        # Extract positions 
+        pos_updated = x_updated[0,0::2]
+        updated_track_state = np.zeros((1,4))
+        updated_track_state[0,0:3] = pos_updated
+        updated_track_state[0,3] = f
+        current_tracks[o] = np.vstack((current_tracks[o],updated_track_state))
+        current_cov[o] = cov_updated
+        # Loop through objects
+    
+    for index in sorted(tracks_to_remove,reverse = True):#i in range(len(tracks_to_remove)):
+        current_tracks.pop(index)
+    return(current_tracks,terminated_tracks,associated_detections)
+
+def add_initialized_to_current_tracks(initialized_tracks,current_tracks,initialized_cov,current_cov,frame):
+    ind_remove = []
+    for t in range(len(initialized_tracks)):
+        track = initialized_tracks[t]
+
+        if(len(track)>=3): # It survived for three frames
+            current_tracks.append(track)
+            current_cov.append(initialized_cov[t])
+            # Save index for removal
+            ind_remove.append(t)
+
+    # Remove from list of initialized
+    for ind in sorted(ind_remove,reverse=True):
+        initialized_tracks.pop(ind)
+        initialized_cov.pop(ind)
+    return(initialized_tracks,current_tracks,initialized_cov,current_cov)
+
 
 
 # TODO
@@ -29,8 +120,6 @@ def count_times_unassociated(track):
 datafile = "tracking/data/data_109.h5"
 camera = h5py.File(datafile, 'r')
 nbr_of_frames = 500
-
-terminated_tracks = []
 
 # Get initial detections
 detections_0 = camera["Sequence"]["0"]["Detections"]
@@ -46,6 +135,9 @@ cov_init = np.array([[1, 0, 0, 0, 0, 0],
                      [0, 0, 0, 0, 0, 1]])
 current_tracks = []
 current_cov = []
+terminated_tracks = []
+initialized_tracks = []
+initialized_cov = []
 for i in range(detections_0.shape[0]):
     track_i_pos = detections_0[i,:]
     track_i_pos = np.asmatrix(track_i_pos)
@@ -97,60 +189,29 @@ for f in range(nbr_of_frames):
                   [      0,       0, dt**2/2],
                   [      0,       0,      dt]]) # To be multiplied with model noise v(x)  = [vx,vy,vz]
     
-    tracks_to_remove = []
-    associated_detections = []
-    for o in range(len(current_tracks)):
-        pos = current_tracks[o][-1,:] # Last posistion of object o
-        pos_t = pos[..., None]
-        x_current = createStateVector(pos_t, init_velocity) #x = [px, vx, py, vy, pz, vz].T
-        cov_o = current_cov[o]
-        # Predict
-        (x_prediction, cov_prediction) = predict(x_current, cov_o, F, G, Q)
+    current_tracks, terminated_tracks,associated_detections = track_all_objects(current_tracks,current_cov,init_velocity,F,G,Q,R,H,
+                                                            next_detections,terminated_tracks,f)
+    
+    # Track the tracks under initialization and add to current tracks if they survival for
+    # three consecutive frames. 
+    templist = []
+    if (len(initialized_tracks)>0):
+        initialized_tracks,temp_terminated,associated_detections = track_all_objects(initialized_tracks,initialized_cov,init_velocity,F,G,Q,R,H,
+                                                            next_detections,templist,f)
+                        
+        initialized_tracks,current_tracks,initialized_cov,current_cov = add_initialized_to_current_tracks(
+                                            initialized_tracks,current_tracks,initialized_cov,current_cov,f)
 
-        # Associate detection
-        associated_detection = associate_NN(x_prediction,next_detections,H,cov_prediction,R)
-        # Check if another track has already been associated to this detection
-        if(any(np.array_equal(associated_detection, ind) for ind in associated_detections)):
-            o_track = current_tracks[o] 
-            terminated_tracks.append(o_track)
-            tracks_to_remove.append(o)
-            
-            other_track_ind = [np.array_equal(associated_detection,i) for i in associated_detections].index(True)
-            other_track = current_tracks[other_track_ind]
-            terminated_tracks.append(other_track)
-            tracks_to_remove.append(other_track_ind)
-            continue
-        
-        associated_detections.append(associated_detection)
 
-        # Check if association was made
-        if(np.count_nonzero(associated_detection) == 0):
-            # Don't make an update; there was no associated detection
-            o_track = current_tracks[o] 
-            terminated_tracks.append(o_track)
-            tracks_to_remove.append(o)
-            continue
-            #x_updated = x_current
-            #cov_updated = cov_o # After three frames without update; terminate track
-        else:
-            # Make an update
-            (x_updated, cov_updated) = update(x_prediction, cov_prediction,
-                                          associated_detection, H, R)
-        
-        # Extract positions 
-        pos_updated = x_updated[0,0::2]
-        updated_track_state = np.zeros((1,4))
-        updated_track_state[0,0:3] = pos_updated
-        updated_track_state[0,3] = f
-        current_tracks[o] = np.vstack((current_tracks[o],updated_track_state))
-        current_cov[o] = cov_updated
-        # Loop through objects
+    #TODO: Check unassociated tracks and mark these as initializing
+    new_tracks,new_cov = initialize_tracks(next_detections,associated_detections,cov_init,f)
+    initialized_tracks.extend(new_tracks)
+    initialized_cov.extend(new_cov)
     
     # Remove all terminated tracks
-    for index in sorted(tracks_to_remove,reverse = True):#i in range(len(tracks_to_remove)):
-        current_tracks.pop(index)
+    #for index in sorted(tracks_to_remove,reverse = True):#i in range(len(tracks_to_remove)):
+    #    current_tracks.pop(index)
     #Loop through frames
-
 
 # visalization
 exit()
