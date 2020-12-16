@@ -2,7 +2,7 @@
 import h5py
 import numpy as np
 
-from tracking.filter import basic
+from tracking.filter import const_acceleration
 from tracking.visualize.predictions import visualize_predictions
 
 
@@ -22,7 +22,7 @@ timestamps = camera["Timestamp"][0:20]
 time_steps = np.insert(np.diff(timestamps), 0, np.median(np.diff(timestamps)))
 
 print(time_steps)
-obj_track = basic.track(single_obj_det, time_steps)
+obj_track = const_acceleration.track(single_obj_det, time_steps)
 
 visualization_gen = zip(obj_track, range(20))
 for ((x_updated, x_prediction, measurement), frame) in visualization_gen:
