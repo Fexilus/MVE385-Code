@@ -1,16 +1,18 @@
 import numpy as np
-from tracking.filter.basic import predict,update,createStateVector
 
-def associate_NN(prediction,detections,H,cov_prediction,R):
-    # Nearest neighbour association
+from ..filter.const_acceleration import predict, update, createStateVector, normalized_innovation
+
+
+def associate_NN(prediction, detections, cov_prediction, norm_innovation, dt):
+    """Nearest neighbour association.
+    norm_innovation should be a function measuring the normalized innovation
+    for a specific filter and motion model.
+    """
     innovation_dist = np.zeros((detections.shape[0],1))
 
     for i in range(detections.shape[0]):
         m = detections[i,:]
-        innovation = m.T - np.matmul(H,prediction.T)
-        S = np.matmul(H,np.matmul(cov_prediction,H.T)) + R
-        norm_innovation = np.matmul(innovation.T,np.matmul(np.linalg.inv(S),innovation))
-        innovation_dist[i] = norm_innovation
+        innovation_dist[i] = norm_innovation(prediction, cov_prediction, m, dt) 
 
     closest_neighbour_ind = np.argmin(innovation_dist)
     closest_neighbour = detections[closest_neighbour_ind]
@@ -23,6 +25,7 @@ def associate_NN(prediction,detections,H,cov_prediction,R):
     
     return(closest_neighbour)
 
+
 def count_times_unassociated(track):
     # Count how many of the last states that are equal, starting from the end
     count = 0
@@ -34,19 +37,22 @@ def count_times_unassociated(track):
         count = 1
     return count
 
-def initialize_tracks(next_detections,associated_detections,cov_init,f):
+
+def initialize_tracks(next_detections, associated_detections, cov_init, time):
     new_tracks = []
     new_cov = []
     for d in next_detections:
         if(not any(np.array_equal(d, ind) for ind in associated_detections)):
             track_d = np.zeros(4)
             track_d[0:3] = d
-            track_d[-1] = f
+            track_d[-1] = time
             new_tracks.append(track_d)
             new_cov.append(cov_init)
     return(new_tracks,new_cov)
 
-def track_all_objects(current_tracks,current_cov,init_velocity,F,G,Q,R,H,next_detections,terminated_tracks,frame):
+
+def track_all_objects(current_tracks, current_cov, next_detections,
+                      terminated_tracks, time, dt):
     tracks_to_remove = [] # Saves indices of tracks to terminate
     associated_detections = [] # Saves list of all detections that has been associated to a track
     
@@ -58,14 +64,16 @@ def track_all_objects(current_tracks,current_cov,init_velocity,F,G,Q,R,H,next_de
             pos = current_tracks[o][-1,:].flatten() # Last posistion of object o
         pos_t = pos[..., None]
 
-        x_current = createStateVector(pos_t, init_velocity) #x = [px, vx, py, vy, pz, vz].T
+        x_current = createStateVector(pos_t) #x = [px, vx, py, vy, pz, vz].T
         cov_o = current_cov[o]
         
         # Predict
-        (x_prediction, cov_prediction) = predict(x_current, cov_o, F, G, Q)
+        (x_prediction, cov_prediction) = predict(x_current, cov_o, dt)
 
         # Associate detection
-        associated_detection = associate_NN(x_prediction,next_detections,H,cov_prediction,R)
+        associated_detection = associate_NN(x_prediction, next_detections,
+                                            cov_prediction,
+                                            normalized_innovation, dt)
         
         # Check if association was made
         if(np.count_nonzero(associated_detection) == 0):
@@ -93,13 +101,13 @@ def track_all_objects(current_tracks,current_cov,init_velocity,F,G,Q,R,H,next_de
         
         # Make an update
         (x_updated, cov_updated) = update(x_prediction, cov_prediction,
-                                          associated_detection, H, R)
+                                          associated_detection, dt)
         
         # Extract positions 
         pos_updated = x_updated[0,0::2]
         updated_track_state = np.zeros((1,4))
         updated_track_state[0,0:3] = pos_updated
-        updated_track_state[0,3] = frame
+        updated_track_state[0,3] = time
         current_tracks[o] = np.vstack((current_tracks[o],updated_track_state))
         current_cov[o] = cov_updated
         # Loop through objects
@@ -109,7 +117,9 @@ def track_all_objects(current_tracks,current_cov,init_velocity,F,G,Q,R,H,next_de
         current_tracks.pop(index)
     return(current_tracks,terminated_tracks,associated_detections)
 
-def add_initialized_to_current_tracks(initialized_tracks,current_tracks,initialized_cov,current_cov,frame):
+
+def add_initialized_to_current_tracks(initialized_tracks, current_tracks,
+                                      initialized_cov, current_cov, time):
     ind_remove = []
     for t in range(len(initialized_tracks)):
         track = initialized_tracks[t]
