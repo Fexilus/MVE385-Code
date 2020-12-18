@@ -116,6 +116,14 @@ def normalized_innovation(x_prediction, cov_prediction, measurement, dt):
                                           R, dt)
 
 
+def defaultStateVector(detection, default_direction=0):
+    """Initialize a new state vector based on the first detection."""
+    default_state = np.array((detection[0], detection[1], detection[2],
+                              1, 0.1, default_direction, 0, 0, 4))
+
+    return default_state
+
+
 def track(single_obj_det, time_steps, default_state, default_cov):
     return extended.track(single_obj_det, time_steps, state_transition_model,
                           state_transition_jacobian, observation_model,

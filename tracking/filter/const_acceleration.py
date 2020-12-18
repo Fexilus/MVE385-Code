@@ -45,12 +45,12 @@ def normalized_innovation(x_prediction, cov_prediction, measurement, dt):
                                        measurement, H, R)
 
 
-def createStateVector(pos, vel=2.0):
-    """Initialize a new state vector."""
-    a = np.full((1,6),vel)
-    a[0][0] = pos[0]
-    a[0][2] = pos[1]
-    a[0][4] = pos[2]
+def defaultStateVector(detection, vel=2.0):
+    """Initialize a new state vector based on the first detection."""
+    a = np.full((1, 6), vel)
+    a[0][0] = detection[0]
+    a[0][2] = detection[1]
+    a[0][4] = detection[2]
 
     return(a)
 
@@ -62,7 +62,7 @@ def track(single_obj_det, time_steps):
     pos_init = np.asarray(single_obj_det[0,:])
 
     pos_t = pos_init[..., None]
-    x_current = createStateVector(pos_t, init_velocity)
+    x_current = defaultStateVector(pos_t, init_velocity)
     cov_current = np.array([[1, 0, 0, 0, 0, 0],
                             [0, 1, 0, 0, 0, 0],
                             [0, 0, 1, 0, 0, 0],

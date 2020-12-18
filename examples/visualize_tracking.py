@@ -7,6 +7,7 @@ from tracking.visualize.pointcloud import init_point_cloud, update_point_cloud
 from tracking.visualize.detections import init_detections, update_detections
 from tracking.visualize.tracks import init_tracks, update_tracks
 from tracking.association.association_tracking import track_multiple_objects
+from tracking.filter.const_acceleration import predict, update, defaultStateVector, normalized_innovation
 
 
 DATA_FILE = "data/data_109.h5"
@@ -21,7 +22,9 @@ pcloud_sequence = load_point_clouds(DATA_FILE, min_security=MIN_SEC)
 det_sequence = load_detections(DATA_FILE)
 
 # Initiate tracking
-tracks_sequence = track_multiple_objects(DATA_FILE)
+tracks_sequence = track_multiple_objects(DATA_FILE, predict, update,
+                                         normalized_innovation,
+                                         defaultStateVector)
 
 # Initiate visualization
 visualizer = o3d.visualization.VisualizerWithKeyCallback()
@@ -78,5 +81,9 @@ def next_frame(visualizer):
 
 
 visualizer.register_key_callback(32, next_frame)
+
+# Use for debugging
+#while True:
+#    next_frame(visualizer)
 
 visualizer.run()

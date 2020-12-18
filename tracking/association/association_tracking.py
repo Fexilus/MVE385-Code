@@ -4,8 +4,6 @@ from collections import defaultdict
 import numpy as np
 import h5py
 
-from ..filter.const_acceleration import predict, update, createStateVector, normalized_innovation
-
 
 def associate_NN(prediction, detections, cov_prediction, norm_innovation, dt):
     """Nearest neighbour association.
@@ -61,7 +59,8 @@ def initialize_tracks(next_detections, associated_detections, cov_init, time,
 
 
 def track_all_objects(current_tracks, current_cov, next_detections,
-                      terminated_tracks, time, dt):
+                      terminated_tracks, time, dt, predict, update,
+                      normalized_innovation, defaultStateVector):
     tracks_to_remove = [] # Saves id:s of tracks to terminate
     associated_detections = {} # Dict of detections associated to tracks
     
@@ -73,7 +72,7 @@ def track_all_objects(current_tracks, current_cov, next_detections,
             pos = current_tracks[track_id][-1,:].flatten() # Last posistion of object o
         pos_t = pos[..., None]
 
-        x_current = createStateVector(pos_t) #x = [px, vx, py, vy, pz, vz].T
+        x_current = defaultStateVector(pos_t) #x = [px, vx, py, vy, pz, vz].T
         cov_o = current_cov[track_id]
         
         # Predict
@@ -149,7 +148,8 @@ def add_initialized_to_current_tracks(initialized_tracks, current_tracks,
     return(initialized_tracks,current_tracks,initialized_cov,current_cov)
 
 
-def track_multiple_objects(datafile):
+def track_multiple_objects(datafile, predict, update, normalized_innovation,
+                           defaultStateVector):
     camera = h5py.File(datafile, 'r')
 
     # Get initial detections
@@ -204,7 +204,9 @@ def track_multiple_objects(datafile):
 
         current_tracks, terminated_tracks, associated_detections = \
             track_all_objects(current_tracks, current_cov, next_detections,
-                              terminated_tracks, timestamp, dt)
+                              terminated_tracks, timestamp, dt, predict,
+                              update, normalized_innovation,
+                              defaultStateVector)
 
         # Track the tracks under initialization and add to current tracks if they survive for
         # three consecutive frames.
@@ -212,7 +214,9 @@ def track_multiple_objects(datafile):
         if len(initialized_tracks) > 0:
             initialized_tracks, _, associated_detections = \
                 track_all_objects(initialized_tracks, initialized_cov,
-                                  next_detections, templist, timestamp, dt)
+                                  next_detections, templist, timestamp, dt,
+                                  predict, update, normalized_innovation,
+                                  defaultStateVector)
 
             initialized_tracks, current_tracks, initialized_cov, current_cov = \
                 add_initialized_to_current_tracks(initialized_tracks,

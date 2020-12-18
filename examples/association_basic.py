@@ -1,7 +1,7 @@
 import numpy as np
 import h5py
 
-from tracking.filter.const_acceleration import predict, update, createStateVector, normalized_innovation
+from tracking.filter.const_acceleration import predict, update, defaultStateVector, normalized_innovation
 from tracking.association.association_tracking import associate_NN
 from tracking.visualize.predictions import visualize_predictions
 
@@ -19,7 +19,7 @@ def track_with_association(pos_init, camera, nbr_of_frames):
 
     pos_t = pos_init[..., None]
 
-    x_current = createStateVector(pos_t, init_velocity)
+    x_current = defaultStateVector(pos_t, init_velocity)
     cov_current = np.array([[1, 0, 0, 0, 0, 0],
                             [0, 1, 0, 0, 0, 0],
                             [0, 0, 1, 0, 0, 0],
