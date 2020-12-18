@@ -3,13 +3,14 @@ acceleration motion model.
 """
 import numpy as np
 import open3d as o3d
+import h5py
 
 from tracking.data.load import load_point_clouds, load_detections
 from tracking.visualize.pointcloud import init_point_cloud, update_point_cloud
 from tracking.visualize.detections import init_detections, update_detections
 from tracking.visualize.tracks import init_tracks, update_tracks
 from tracking.association.association_tracking import track_multiple_objects
-from tracking.filter.const_acceleration import predict, update, defaultStateVector, normalized_innovation
+from tracking.filter.const_acceleration import predict, update, defaultStateVector, normalized_innovation, state_to_position, detection_to_position
 
 
 DATA_FILE = "data/data_109.h5"
@@ -24,9 +25,16 @@ pcloud_sequence = load_point_clouds(DATA_FILE, min_security=MIN_SEC)
 det_sequence = load_detections(DATA_FILE)
 
 # Initiate tracking
-tracks_sequence = track_multiple_objects(DATA_FILE, predict, update,
-                                         normalized_innovation,
-                                         defaultStateVector)
+camera = h5py.File(DATA_FILE, 'r')
+
+detections = (camera["Sequence"][str(i)]["Detections"]["Pos"]
+              for i in range(len(camera["Sequence"])))
+timestamps = iter(np.asarray(camera["Timestamp"]))
+
+tracks_sequence = track_multiple_objects(detections, timestamps, predict,
+                                         update, normalized_innovation,
+                                         defaultStateVector, state_to_position,
+                                         detection_to_position)
 
 # Initiate visualization
 visualizer = o3d.visualization.VisualizerWithKeyCallback()

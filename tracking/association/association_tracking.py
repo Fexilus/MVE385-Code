@@ -2,7 +2,6 @@ import itertools
 from collections import defaultdict
 
 import numpy as np
-import h5py
 
 
 def associate_NN(prediction, detections, cov_prediction, norm_innovation, dt):
@@ -22,7 +21,7 @@ def associate_NN(prediction, detections, cov_prediction, norm_innovation, dt):
     # TODO: set a cut-off for how far away the next detection can be
     if (innovation_dist[closest_neighbour_ind] > 10):
         # Send back that there is no associated neighbour
-        closest_neighbour = np.matrix([0,0,0])
+        closest_neighbour = np.matrix(np.zeros(detections.shape))
     # TODO how to handle new detections
     
     return(closest_neighbour)
@@ -41,7 +40,7 @@ def count_times_unassociated(track):
 
 
 def initialize_tracks(next_detections, associated_detections, cov_init, time,
-                      id_generator):
+                      id_generator, detection_to_position):
     new_tracks = defaultdict(list)
     new_cov = defaultdict(lambda: cov_init)
 
@@ -50,7 +49,7 @@ def initialize_tracks(next_detections, associated_detections, cov_init, time,
             track_id = next(id_generator)
 
             track_d = np.zeros(4)
-            track_d[0:3] = d
+            track_d[0:3] = detection_to_position(d)
             track_d[-1] = time
             new_tracks[track_id] = track_d
             new_cov[track_id] = cov_init
@@ -60,7 +59,8 @@ def initialize_tracks(next_detections, associated_detections, cov_init, time,
 
 def track_all_objects(current_tracks, current_cov, next_detections,
                       terminated_tracks, time, dt, predict, update,
-                      normalized_innovation, defaultStateVector):
+                      normalized_innovation, defaultStateVector,
+                      state_to_position):
     tracks_to_remove = [] # Saves id:s of tracks to terminate
     associated_detections = {} # Dict of detections associated to tracks
     
@@ -111,8 +111,8 @@ def track_all_objects(current_tracks, current_cov, next_detections,
         (x_updated, cov_updated) = update(x_prediction, cov_prediction,
                                           associated_detection, dt)
         
-        # Extract positions 
-        pos_updated = x_updated[0,0::2]
+        # Extract positions
+        pos_updated = state_to_position(x_updated)
         updated_track_state = np.zeros((1,4))
         updated_track_state[0,0:3] = pos_updated
         updated_track_state[0,3] = time
@@ -148,22 +148,18 @@ def add_initialized_to_current_tracks(initialized_tracks, current_tracks,
     return(initialized_tracks,current_tracks,initialized_cov,current_cov)
 
 
-def track_multiple_objects(datafile, predict, update, normalized_innovation,
-                           defaultStateVector):
-    camera = h5py.File(datafile, 'r')
-
+def track_multiple_objects(detections, timestamps, predict, update,
+                           normalized_innovation, defaultStateVector,
+                           state_to_position, detection_to_position):
     # Get initial detections
-    detections_0 = camera["Sequence"]["0"]["Detections"]
-    detections_0 = np.asarray([list(det[0]) for det in list(detections_0)])
+    detections_0 = next(detections)
+    detections_0 = np.asarray([list(det) for det in detections_0])
 
     # Initialize tracks at time 0
     # current_tracks is a list of the detection matrices
-    cov_init = np.array([[1, 0, 0, 0, 0, 0],
-                         [0, 1, 0, 0, 0, 0],
-                         [0, 0, 1, 0, 0, 0],
-                         [0, 0, 0, 1, 0, 0],
-                         [0, 0, 0, 0, 1, 0],
-                         [0, 0, 0, 0, 0, 1]])
+    detection_size = detections_0[0].size
+    state_size = defaultStateVector(np.zeros((detection_size,))).size
+    cov_init = np.eye(state_size)
 
     current_tracks = defaultdict(list)
     current_cov = defaultdict(lambda: cov_init)
@@ -178,10 +174,10 @@ def track_multiple_objects(datafile, predict, update, normalized_innovation,
     for i in range(detections_0.shape[0]):
         track_id = next(id_generator)
 
-        track_i_pos = detections_0[i,:]
+        track_i_pos = detection_to_position(detections_0[i,:])
         track_i_pos = np.asmatrix(track_i_pos)
-        track_i = np.zeros((1,4)) # Last value indicate in which frame this object had this position
-        track_i[0,0:3] = track_i_pos
+        track_i = np.zeros((1, 4)) # Last value indicate in which frame this object had this position
+        track_i[0,0:-1] = track_i_pos
 
         current_tracks[track_id] = track_i
 
@@ -190,14 +186,12 @@ def track_multiple_objects(datafile, predict, update, normalized_innovation,
 
     # Initialize values (currently for the basic Kalman filter)
     #init_velocity = 2.0#*np.ones((3,1)) # dt*init_velocity is how far the object moved between two frames 
-    timestamps = camera["Timestamp"][1:]
-    last_timestamp = camera["Timestamp"][0]
+    last_timestamp = next(timestamps)
 
-    for frame, timestamp in zip(range(1, timestamps.shape[0] - 1), timestamps):
+    for timestamp in timestamps:
 
-        next_detections = camera["Sequence"][str(frame)]["Detections"]
-        next_detections = np.asarray([list(det[0]) for det
-                                      in list(next_detections)])
+        next_detections = next(detections)
+        next_detections = np.asarray([list(det) for det in next_detections])
 
         # Assume vector x = [px, vx, py, vy, pz, vz].T
         dt = timestamp - last_timestamp
@@ -206,7 +200,7 @@ def track_multiple_objects(datafile, predict, update, normalized_innovation,
             track_all_objects(current_tracks, current_cov, next_detections,
                               terminated_tracks, timestamp, dt, predict,
                               update, normalized_innovation,
-                              defaultStateVector)
+                              defaultStateVector, state_to_position)
 
         # Track the tracks under initialization and add to current tracks if they survive for
         # three consecutive frames.
@@ -216,7 +210,7 @@ def track_multiple_objects(datafile, predict, update, normalized_innovation,
                 track_all_objects(initialized_tracks, initialized_cov,
                                   next_detections, templist, timestamp, dt,
                                   predict, update, normalized_innovation,
-                                  defaultStateVector)
+                                  defaultStateVector, state_to_position)
 
             initialized_tracks, current_tracks, initialized_cov, current_cov = \
                 add_initialized_to_current_tracks(initialized_tracks,
@@ -228,7 +222,8 @@ def track_multiple_objects(datafile, predict, update, normalized_innovation,
         # Check unassociated detections and add these to initializing
         new_tracks, new_cov = initialize_tracks(next_detections,
                                                 associated_detections, cov_init,
-                                                timestamp, id_generator)
+                                                timestamp, id_generator,
+                                                detection_to_position)
         initialized_tracks.update(new_tracks)
         initialized_cov.update(new_cov)
 

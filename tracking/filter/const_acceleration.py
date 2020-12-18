@@ -55,6 +55,20 @@ def defaultStateVector(detection, vel=2.0):
     return(a)
 
 
+def state_to_position(state):
+    position_states = np.asarray((0, 2, 4))
+    position = state.flatten()[position_states]
+
+    return position
+
+
+def detection_to_position(detection):
+    position_detections = np.asarray((0, 1, 2))
+    position = detection[position_detections]
+
+    return position
+
+
 def track(single_obj_det, time_steps):
     """Track a single object with a basic Kalman filter."""
     # Initilize positions and velocities
