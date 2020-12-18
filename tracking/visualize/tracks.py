@@ -6,7 +6,7 @@ from ..data.load import track_palette
 
 
 def make_geometries_from_dict(tracks, old_track_geometries=None,
-                            palette=track_palette):
+                              palette=track_palette):
     track_line_sets = {}
 
     for track_id, points in tracks.items():
@@ -17,8 +17,8 @@ def make_geometries_from_dict(tracks, old_track_geometries=None,
 
             line_set.points = o3d.utility.Vector3dVector(points_pos)
 
-            line_indices = np.column_stack((range(0, len(points)),
-                                            range(1, len(points) + 1)))
+            line_indices = np.column_stack((range(0, len(points) - 1),
+                                            range(1, len(points))))
             line_set.lines = o3d.utility.Vector2iVector(np.asarray(line_indices))
 
             if old_track_geometries:

@@ -123,8 +123,8 @@ def load_tracks(hdf5file, start_frame=0, palette=track_palette):
         points_regular = points_struct.view(np.float64).reshape(points_struct.shape + (-1,))
         line_set.points = o3d.utility.Vector3dVector(points_regular)
 
-        line_indices = np.column_stack((range(0, len(points)),
-                                        range(1, len(points) + 1)))
+        line_indices = np.column_stack((range(0, len(points) - 1),
+                                        range(1, len(points))))
         line_set.lines = o3d.utility.Vector2iVector(np.asarray(line_indices))
 
         line_set.paint_uniform_color(np.asarray(next(palette)))
