@@ -65,12 +65,12 @@ def track_all_objects(current_tracks, current_cov, next_detections,
     tracks_to_remove = [] # Saves id:s of tracks to terminate
     associated_detections = {} # Dict of detections associated to tracks
     
-    for track_id, track in current_tracks.items():
+    for track_id in current_tracks:
 
-        if len(track <= 1):
-            pos = track.flatten()
+        if len(current_tracks[track_id] <= 1):
+            pos = current_tracks[track_id].flatten()
         else:
-            pos = track[-1,:].flatten() # Last posistion of object o
+            pos = current_tracks[track_id][-1,:].flatten() # Last posistion of object o
         pos_t = pos[..., None]
 
         x_current = createStateVector(pos_t) #x = [px, vx, py, vy, pz, vz].T
@@ -88,7 +88,7 @@ def track_all_objects(current_tracks, current_cov, next_detections,
         if(np.count_nonzero(associated_detection) == 0):
             # Don't make an update; there was no associated detection
             # TODO: add termination only after third frame without association
-            terminated_tracks.append(track)
+            terminated_tracks.append(current_tracks[track_id])
             tracks_to_remove.append(track_id)
             continue
         
@@ -96,7 +96,7 @@ def track_all_objects(current_tracks, current_cov, next_detections,
         if(any(np.array_equal(associated_detection, det) 
                for _, det in associated_detections.items())):
             # Terminate both tracks that were associated to this detection and continue to next track
-            terminated_tracks.append(track)
+            terminated_tracks.append(current_tracks[track_id])
             tracks_to_remove.append(track_id)
             
             for other_track_id, det in associated_detections.items():
@@ -117,7 +117,8 @@ def track_all_objects(current_tracks, current_cov, next_detections,
         updated_track_state = np.zeros((1,4))
         updated_track_state[0,0:3] = pos_updated
         updated_track_state[0,3] = time
-        track = np.vstack((track,updated_track_state))
+        current_tracks[track_id] = np.vstack((current_tracks[track_id],
+                                              updated_track_state))
         current_cov[track_id] = cov_updated
         # Loop through objects
     
