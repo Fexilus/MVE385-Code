@@ -1,4 +1,6 @@
-"""Visualize created tracks."""
+"""Visualize tracks created using multiple object tracking with constant
+acceleration motion model.
+"""
 import numpy as np
 import open3d as o3d
 
