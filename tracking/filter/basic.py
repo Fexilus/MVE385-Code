@@ -26,11 +26,11 @@ def update(x_prediction, cov_prediction, measurement, H, R):
     return (x_updated, cov_updated)
 
 
-def normalized_innovation(x_prediction, cov_prediction, measurement, H, R):
+def normalized_innovation(state_prediction, cov_prediction, measurement, H, R):
     """Find the normalized innovation for a measurement."""
     # The innovation
-    residual = measurement - np.matmul(H, x_prediction.T).T
-    residual_cov = np.matmul(H, np.matmul(cov_prediction, H.T)) + R
+    residual = measurement - np.matmul(H, state_prediction.T).T
+    innovation_variance = np.matmul(H, np.matmul(cov_prediction, H.T)) + R
 
-    return np.matmul(residual, np.matmul(np.linalg.inv(residual_cov),
+    return np.matmul(residual, np.matmul(np.linalg.inv(innovation_variance),
                                          residual.T))
