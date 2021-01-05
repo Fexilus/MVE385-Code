@@ -39,32 +39,30 @@ def update(x_prediction, cov_prediction, measurement, dt):
     return basic.update(x_prediction, cov_prediction, measurement, H, R)
 
 
-def normalized_innovation(x_prediction, cov_prediction, measurement, dt):
+def normalized_innovation(state_pred, cov_pred, measurement, dt):
     """Normalized innovation using constant acceleration model."""
-    return basic.normalized_innovation(x_prediction, cov_prediction,
-                                       measurement, H, R)
+
+    return basic.normalized_innovation(state_pred, cov_pred, measurement, H, R)
 
 
 def defaultStateVector(detection, vel=2.0):
     """Initialize a new state vector based on the first detection."""
-    a = np.full((1, 6), vel)
-    a[0][0] = detection[0]
-    a[0][2] = detection[1]
-    a[0][4] = detection[2]
+    default_state = np.full((1, 6), vel)
+    default_state[0][(0, 2, 4),] = detection[0]
 
-    return(a)
+    return default_state
 
 
 def state_to_position(state):
     position_states = np.asarray((0, 2, 4))
-    position = state.flatten()[position_states]
+    position = state[:, position_states]
 
     return position
 
 
 def detection_to_position(detection):
     position_detections = np.asarray((0, 1, 2))
-    position = detection[position_detections]
+    position = detection[:, position_detections]
 
     return position
 

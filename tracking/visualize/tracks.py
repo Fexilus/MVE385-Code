@@ -10,7 +10,7 @@ def make_geometries_from_dict(tracks, old_track_geometries=None,
     track_line_sets = {}
 
     for track_id, points in tracks.items():
-        points_pos = np.reshape(points, (-1, 4))[:,:3]
+        points_pos = np.reshape([point[0] for point in points], (-1, 3))
 
         if points_pos.shape[0] > 1:
             line_set = o3d.geometry.LineSet()

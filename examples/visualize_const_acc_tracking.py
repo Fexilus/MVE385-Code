@@ -27,14 +27,24 @@ det_sequence = load_detections(DATA_FILE)
 # Initiate tracking
 camera = h5py.File(DATA_FILE, 'r')
 
-detections = (camera["Sequence"][str(i)]["Detections"]["Pos"]
-              for i in range(len(camera["Sequence"])))
+
+def camera_detections():
+    for i in range(len(camera["Sequence"])):
+        raw_detections = camera["Sequence"][str(i)]["Detections"]
+        positions = [list(pos) for pos in raw_detections["Pos"]]
+
+        detections = [np.ndarray((1, 3), buffer=np.asarray(pos))
+                      for pos in positions]
+
+        yield detections
+
+
 timestamps = iter(np.asarray(camera["Timestamp"]))
 
-tracks_sequence = track_multiple_objects(detections, timestamps, predict,
-                                         update, normalized_innovation,
-                                         defaultStateVector, state_to_position,
-                                         detection_to_position)
+tracks_sequence = track_multiple_objects(camera_detections(), timestamps,
+                                         predict, update,
+                                         normalized_innovation,
+                                         defaultStateVector, state_to_position)
 
 # Initiate visualization
 visualizer = o3d.visualization.VisualizerWithKeyCallback()

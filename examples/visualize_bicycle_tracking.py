@@ -36,12 +36,15 @@ camera = h5py.File(DATA_FILE, 'r')
 
 def camera_detections():
     for frame in range(len(camera["Sequence"])):
-        detections = camera["Sequence"][str(frame)]["Detections"]
-        positions = [list(pos) for pos in detections["Pos"]]
+        raw_detections = camera["Sequence"][str(frame)]["Detections"]
+        positions = [list(pos) for pos in raw_detections["Pos"]]
         lengths = [max(l, w) for l, w
-                    in zip(detections["Length"], detections["Width"])]
+                    in zip(raw_detections["Length"], raw_detections["Width"])]
 
-        yield [pos + [leng] for pos, leng in zip(positions, lengths)]
+        detections = [np.ndarray((1, 4), buffer=np.asarray(pos + [leng]))
+                      for pos, leng in zip(positions, lengths)]
+
+        yield detections
 
 
 timestamps = iter(np.asarray(camera["Timestamp"]))
@@ -50,8 +53,7 @@ tracks_sequence = track_multiple_objects(camera_detections(), timestamps,
                                          predict, update,
                                          normalized_innovation,
                                          specificDefaultStateVector,
-                                         state_to_position,
-                                         detection_to_position)
+                                         state_to_position)
 
 # Initiate visualization
 visualizer = o3d.visualization.VisualizerWithKeyCallback()

@@ -7,15 +7,15 @@ from . import extended
 def state_transition_model(state, dt):
     new_state = state
 
-    x       = state[0]
-    y       = state[1]
-    z       = state[2]
-    v       = state[3]
-    a       = state[4]
-    theta   = state[5]
-    delta   = state[6]
-    phi     = state[7]
-    L       = state[8]
+    x       = state[0][0]
+    y       = state[0][1]
+    z       = state[0][2]
+    v       = state[0][3]
+    a       = state[0][4]
+    theta   = state[0][5]
+    delta   = state[0][6]
+    phi     = state[0][7]
+    L       = state[0][8]
 
     beta = np.arctan(np.tan(delta) / 2) # The slip angle
 
@@ -29,15 +29,15 @@ def state_transition_model(state, dt):
     phi_dot     = 0
     L_dot       = 0
 
-    new_state[0] += dt * x_dot
-    new_state[1] += dt * y_dot
-    new_state[2] += dt * z_dot
-    new_state[3] += dt * v_dot
-    new_state[4] += dt * a_dot
-    new_state[5] += dt * theta_dot
-    new_state[6] += dt * delta_dot
-    new_state[7] += dt * phi_dot
-    new_state[8] += dt * L_dot
+    new_state[0][0] += dt * x_dot
+    new_state[0][1] += dt * y_dot
+    new_state[0][2] += dt * z_dot
+    new_state[0][3] += dt * v_dot
+    new_state[0][4] += dt * a_dot
+    new_state[0][5] += dt * theta_dot
+    new_state[0][6] += dt * delta_dot
+    new_state[0][7] += dt * phi_dot
+    new_state[0][8] += dt * L_dot
 
     return new_state
 
@@ -45,15 +45,15 @@ def state_transition_model(state, dt):
 def state_transition_jacobian(state, dt):
     transition_jacobian = np.identity(9)
 
-    x       = state[0]
-    y       = state[1]
-    z       = state[2]
-    v       = state[3]
-    a       = state[4]
-    theta   = state[5]
-    delta   = state[6]
-    phi     = state[7]
-    L       = state[8]
+    x       = state[0][0]
+    y       = state[0][1]
+    z       = state[0][2]
+    v       = state[0][3]
+    a       = state[0][4]
+    theta   = state[0][5]
+    delta   = state[0][6]
+    phi     = state[0][7]
+    L       = state[0][8]
 
     beta = np.arctan(np.tan(delta) / 2) # The slip angle
     beta_d_delta = 4 / (5 + 3 * np.cos(2 * delta))
@@ -76,7 +76,7 @@ def state_transition_jacobian(state, dt):
 
 def observation_model(state, dt):
     observed_states = np.asarray((0, 1, 2, 8))
-    observation = state[observed_states]
+    observation = state[:, observed_states]
 
     return observation
 
@@ -118,22 +118,26 @@ def normalized_innovation(x_prediction, cov_prediction, measurement, dt):
 
 def defaultStateVector(detection, default_direction=0):
     """Initialize a new state vector based on the first detection."""
-    default_state = np.array((detection[0], detection[1], detection[2],
-                              1, 0.1, default_direction, 0, 0, detection[3]))
+    default_state = np.ndarray((1, 9),
+                               buffer=np.asarray((detection[0][0],
+                                                  detection[0][1],
+                                                  detection[0][2], 1, 0.1,
+                                                  default_direction, 0, 0,
+                                                  detection[0][3])))
 
     return default_state
 
 
 def state_to_position(state):
     position_states = np.asarray((0, 1, 2))
-    position = state[position_states]
+    position = state[:, position_states]
 
     return position
 
 
 def detection_to_position(detection):
     position_detections = np.asarray((0, 1, 2))
-    position = detection[position_detections]
+    position = detection[:, position_detections]
 
     return position
 
