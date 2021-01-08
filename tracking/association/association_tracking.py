@@ -4,19 +4,20 @@ from collections import defaultdict
 import numpy as np
 
 
-def associate_NN(prediction, detections, cov_prediction, norm_innovation, dt):
+def associate_NN(prediction, measurements, cov_prediction, filter_impl, dt):
     """Nearest neighbour association.
     norm_innovation should be a function measuring the normalized innovation
-    for a specific filter and motion model.
+    for a specific filter_impl and motion model.
     """
     innovation_dist = []
 
-    for detection in detections:
-        innovation_dist += [norm_innovation(prediction, cov_prediction,
-                                            detection, dt)]
+    for measurement in measurements:
+        innovation_dist += [filter_impl.normalized_innovation(prediction,
+                                                              cov_prediction,
+                                                              measurement, dt)]
 
     closest_neighbour_ind = np.argmin(innovation_dist)
-    closest_neighbour = detections[closest_neighbour_ind]
+    closest_neighbour = measurements[closest_neighbour_ind]
 
     # TODO: This is just a quick fix, stringency should maybe be introduced
     mean_log_dist = np.mean(np.log(innovation_dist))
@@ -27,7 +28,7 @@ def associate_NN(prediction, detections, cov_prediction, norm_innovation, dt):
     if mean_log_dist - min_log_dist < std_dev_log_dist:
         # Send back that there is no associated neighbour
         closest_neighbour = None
-    # TODO how to handle new detections
+    # TODO how to handle new measurements
 
     return closest_neighbour
 
@@ -44,31 +45,32 @@ def count_times_unassociated(track):
     return count
 
 
-def initialize_tracks(next_detections, associated_detections, cov_init, time,
-                      id_generator, defaultStateVector, state_to_position):
+def initialize_tracks(next_measurements, associated_measurements, cov_init, time,
+                      id_generator, filter_impl):
     new_tracks = defaultdict(list)
     new_states = {}
     new_cov = defaultdict(lambda: cov_init)
 
-    # TODO: Should be able to save detections more effectively
-    for detection in next_detections:
-        if not (any(np.array_equal(detection, ass_detection)
-                for _, ass_detection in associated_detections.items())):
+    # TODO: Should be able to save measurements more effectively
+    for measurement in next_measurements:
+        if not (any(np.array_equal(measurement, ass_measurement)
+                for _, ass_measurement in associated_measurements.items())):
             track_id = next(id_generator)
 
-            new_state = defaultStateVector(detection)
-            new_tracks[track_id] += [(state_to_position(new_state), time)]
+            new_state = filter_impl.default_state(measurement)
+            new_tracks[track_id] += [(filter_impl.state2position(new_state),
+                                      time)]
             new_states[track_id] = new_state
             new_cov[track_id] = cov_init
 
     return (new_tracks, new_states, new_cov)
 
 
-def track_all_objects(current_tracks, current_states, current_cov, next_detections,
-                      terminated_tracks, time, dt, predict, update,
-                      normalized_innovation, state_to_position):
+def track_all_objects(current_tracks, current_states, current_cov,
+                      next_measurements, terminated_tracks, time, dt,
+                      filter_impl):
     tracks_to_remove = [] # Saves id:s of tracks to terminate
-    associated_detections = {} # Dict of detections associated to tracks
+    associated_measurements = {} # Dict of measurements associated to tracks
 
     for track_id in current_tracks:
 
@@ -77,27 +79,27 @@ def track_all_objects(current_tracks, current_states, current_cov, next_detectio
         last_cov = current_cov[track_id]
 
         # Predict
-        state_pred, cov_pred = predict(last_state, last_cov, dt)
+        state_pred, cov_pred = filter_impl.predict(last_state, last_cov, dt)
 
-        # Associate detection
-        associated_detection = associate_NN(state_pred, next_detections,
-                                            cov_pred, normalized_innovation,
-                                            dt)
+        # Associate measurement
+        associated_measurement = associate_NN(state_pred, next_measurements,
+                                              cov_pred, filter_impl,
+                                              dt)
 
         # Check if association was made
-        if np.count_nonzero(associated_detection) == 0:
-            # Don't make an update; there was no associated detection
+        if np.count_nonzero(associated_measurement) == 0:
+            # Don't make an update; there was no associated measurement
             # TODO: add termination only after third frame without association
             terminated_tracks[track_id] = current_tracks[track_id]
             tracks_to_remove.append(track_id)
 
             continue
 
-        # Check if another track has already been associated to this detection
-        for other_id, other_detection in associated_detections.items():
-            if np.array_equal(associated_detection, other_detection):
-                # Terminate both tracks that were associated to this detection
-                # and continue to next track
+        # Check if other track has already been associated to this measurement
+        for other_id, other_measurement in associated_measurements.items():
+            if np.array_equal(associated_measurement, other_measurement):
+                # Terminate both tracks that were associated to this
+                # measurement and continue to next track
                 terminated_tracks[track_id] = current_tracks[track_id]
                 tracks_to_remove.append(track_id)
 
@@ -106,14 +108,16 @@ def track_all_objects(current_tracks, current_states, current_cov, next_detectio
 
                 continue
 
-        associated_detections[track_id] = associated_detection
+        associated_measurements[track_id] = associated_measurement
 
         # Make an update
-        state_update, cov_update = update(state_pred, cov_pred,
-                                          associated_detection, dt)
+        state_update, cov_update = filter_impl.update(state_pred, cov_pred,
+                                                      associated_measurement,
+                                                      dt)
 
         # Add new track state and update covariance
-        current_tracks[track_id] += [(state_to_position(state_update), time)]
+        current_tracks[track_id] += [(filter_impl.state2position(state_update),
+                                      time)]
         current_states[track_id] = state_update
         current_cov[track_id] = cov_update
 
@@ -124,7 +128,7 @@ def track_all_objects(current_tracks, current_states, current_cov, next_detectio
             del current_states[index]
             del current_cov[index]
 
-    return (current_tracks, terminated_tracks, associated_detections)
+    return (current_tracks, terminated_tracks, associated_measurements)
 
 
 def add_initialized_to_current_tracks(initialized_tracks, current_tracks,
@@ -150,23 +154,16 @@ def add_initialized_to_current_tracks(initialized_tracks, current_tracks,
             current_states, initialized_cov, current_cov)
 
 
-def track_multiple_objects(detections, timestamps, predict, update,
-                           normalized_innovation, defaultStateVector,
-                           state_to_position):
-    # Get initial detections
-    detections_0_raw = next(detections)
+def track_multiple_objects(measurements, timestamps, filter_impl):
+    # Get initial measurements
+    measurements_0_raw = next(measurements)
 
-    # Calculate model detection and state size
-    # TODO: Deal with no detections appearing at first
-    detection_size = detections_0_raw[0].size
-    state_size = defaultStateVector(np.zeros((1, detection_size))).size
+    # Format fist measurements and initial covariance matrix
+    measurements_0 = [np.ndarray((1, filter_impl.NUM_MEASUREMENTS),
+                                 buffer=np.asarray(measurement))
+                    for measurement in measurements_0_raw]
 
-    # Format fist detections and initial covariance matrix
-    detections_0 = [np.ndarray((1, detection_size),
-                               buffer=np.asarray(detection))
-                    for detection in detections_0_raw]
-
-    cov_init = np.eye(state_size)
+    cov_init = np.eye(filter_impl.NUM_STATES)
 
     # Initialize tracks
     # Tracks are dictonaries with lists of two-tuples, where the first tuple
@@ -185,40 +182,39 @@ def track_multiple_objects(detections, timestamps, predict, update,
     # Generator of unique ids
     id_generator = itertools.count(0)
 
-    for detection in detections_0:
+    for measurement in measurements_0:
         track_id = next(id_generator)
 
-        state = defaultStateVector(detection)
+        state = filter_impl.default_state(measurement)
 
-        current_tracks[track_id] += [(state_to_position(state), 0)]
+        current_tracks[track_id] += [(filter_impl.state2position(state), 0)]
         current_states[track_id] = state
 
     last_timestamp = next(timestamps)
 
     for timestamp in timestamps:
 
-        next_detections_raw = next(detections)
-        next_detections = [np.ndarray((1, detection_size), buffer=detection)
-                           for detection in next_detections_raw]
+        next_measurements_raw = next(measurements)
+        next_measurements = [np.ndarray((1, filter_impl.NUM_MEASUREMENTS),
+                                        buffer=measurement)
+                             for measurement in next_measurements_raw]
 
         # Assume vector x = [px, vx, py, vy, pz, vz].T
         dt = timestamp - last_timestamp
 
-        current_tracks, terminated_tracks, associated_detections = \
+        current_tracks, terminated_tracks, associated_measurements = \
             track_all_objects(current_tracks, current_states, current_cov,
-                              next_detections, terminated_tracks, timestamp,
-                              dt, predict, update, normalized_innovation,
-                              state_to_position)
+                              next_measurements, terminated_tracks, timestamp,
+                              dt, filter_impl)
 
         # Track the tracks under initialization and add to current tracks if
         # they survive for three consecutive frames.
         tempdict = defaultdict(list)
         if len(initialized_tracks) > 0:
-            initialized_tracks, _, associated_detections = \
+            initialized_tracks, _, associated_measurements = \
                 track_all_objects(initialized_tracks, initialized_states,
-                                  initialized_cov, next_detections, tempdict,
-                                  timestamp, dt, predict, update,
-                                  normalized_innovation, state_to_position)
+                                  initialized_cov, next_measurements, tempdict,
+                                  timestamp, dt, filter_impl)
 
             initialized_tracks, current_tracks, initialized_states, \
                 current_states, initialized_cov, current_cov = \
@@ -229,11 +225,10 @@ def track_multiple_objects(detections, timestamps, predict, update,
                                                   initialized_cov, current_cov)
 
 
-        # Check unassociated detections and add these to initializing
+        # Check unassociated measurements and add these to initializing
         new_tracks, new_states, new_cov = \
-            initialize_tracks(next_detections, associated_detections, cov_init,
-                              timestamp, id_generator, defaultStateVector,
-                              state_to_position)
+            initialize_tracks(next_measurements, associated_measurements,
+                              cov_init, timestamp, id_generator, filter_impl)
         initialized_tracks.update(new_tracks)
         initialized_states.update(new_states)
         initialized_cov.update(new_cov)

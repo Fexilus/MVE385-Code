@@ -1,10 +1,23 @@
-"""An implementation of the extended Kalman filter using the bicycle model."""
+"""An implementation of a basic Kalman with the bicycle motion model.
+This module implements an "interface" for modules that pairs a filter type with
+a motion model, and can thus be directly used to track objects.
+"""
 import numpy as np
 
 from . import extended
 
 
+NUM_STATES = 9
+NUM_MEASUREMENTS = 4
+
+# Default model noise
+v = np.array((1, 1, 1, 1, 1, 1, 1, 1, 1))
+
+# Measurement noise covariance matrix
+R = np.identity(4)
+
 def state_transition_model(state, dt):
+    """The transition model of the bicycle model."""
     new_state = state
 
     x       = state[0][0]
@@ -43,7 +56,8 @@ def state_transition_model(state, dt):
 
 
 def state_transition_jacobian(state, dt):
-    transition_jacobian = np.identity(9)
+    """The jacobian of the transition model of the bicycle model."""
+    transition_jacobian = np.identity(NUM_STATES)
 
     x       = state[0][0]
     y       = state[0][1]
@@ -58,23 +72,36 @@ def state_transition_jacobian(state, dt):
     beta = np.arctan(np.tan(delta) / 2) # The slip angle
     beta_d_delta = 4 / (5 + 3 * np.cos(2 * delta))
 
-    transition_jacobian[0, 3] = dt * np.cos(beta + theta)
-    transition_jacobian[0, 5] = dt * v * (-np.sin(beta + theta))
-    transition_jacobian[0, 6] = dt * v * (-np.sin(beta + theta)) * beta_d_delta
-    transition_jacobian[1, 3] = dt * np.sin(beta + theta)
-    transition_jacobian[1, 5] = dt * v * np.cos(beta + theta)
-    transition_jacobian[1, 6] = dt * v * np.cos(beta + theta) * beta_d_delta
-    transition_jacobian[3, 4] = dt
-    transition_jacobian[5, 3] = dt * np.tan(delta) * np.cos(beta) / L
-    transition_jacobian[5, 6] = dt * v / L * (np.cos(beta) / (np.cos(delta) ** 2)
-                                              - np.tan(delta) * np.sin(beta) * beta_d_delta)
-    transition_jacobian[5, 8] = dt * (-v) * np.tan(delta) * np.cos(beta) / (L ** 2)
-    transition_jacobian[6, 7] = dt
+    x_d_v           = np.cos(beta + theta)
+    x_d_theta       = v * (-np.sin(beta + theta))
+    x_d_delta       = v * (-np.sin(beta + theta)) * beta_d_delta
+    y_d_v           = np.sin(beta + theta)
+    y_d_theta       = v * np.cos(beta + theta)
+    y_d_delta       = v * np.cos(beta + theta) * beta_d_delta
+    v_d_a           = 1
+    theta_d_v       = np.tan(delta) * np.cos(beta) / L
+    theta_d_delta   = v / L * (np.cos(beta) / (np.cos(delta) ** 2)
+                               - np.tan(delta) * np.sin(beta) * beta_d_delta)
+    theta_d_delta   = (-v) * np.tan(delta) * np.cos(beta) / (L ** 2)
+    delta_d_phi     = 1
+
+    transition_jacobian[0, 3] = dt * x_d_v
+    transition_jacobian[0, 5] = dt * x_d_theta
+    transition_jacobian[0, 6] = dt * x_d_delta
+    transition_jacobian[1, 3] = dt * y_d_v
+    transition_jacobian[1, 5] = dt * y_d_theta
+    transition_jacobian[1, 6] = dt * y_d_delta
+    transition_jacobian[3, 4] = dt * v_d_a
+    transition_jacobian[5, 3] = dt * theta_d_v
+    transition_jacobian[5, 6] = dt * theta_d_delta
+    transition_jacobian[5, 8] = dt * theta_d_delta
+    transition_jacobian[6, 7] = dt * delta_d_phi
 
     return transition_jacobian
 
 
 def observation_model(state, dt):
+    """The observation model of the bicycle model."""
     observed_states = np.asarray((0, 1, 2, 8))
     observation = state[:, observed_states]
 
@@ -82,6 +109,7 @@ def observation_model(state, dt):
 
 
 def observation_jacobian(state, dt):
+    """The jacobian of the observation model of the bicycle model."""
     jacobian = np.asarray([[1, 0, 0, 0, 0, 0, 0, 0, 0],
                            [0, 1, 0, 0, 0, 0, 0, 0, 0],
                            [0, 0, 1, 0, 0, 0, 0, 0, 0],
@@ -90,60 +118,48 @@ def observation_jacobian(state, dt):
     return jacobian
 
 
-# model noise
-v = np.array((1, 1, 1, 1, 1, 1, 1, 1, 1))
-# measurement noise covariance matrix
-R = np.identity(4)
-
-
-def predict(x_current, cov_current, dt):
+def predict(state_current, cov_current, dt):
     """Predict state using constant acceleration model."""
-    return extended.predict(x_current, cov_current, state_transition_model,
+    return extended.predict(state_current, cov_current, state_transition_model,
                             state_transition_jacobian, v, dt)
 
 
-def update(x_prediction, cov_prediction, measurement, dt):
+def update(state_prediction, cov_prediction, measurement, dt):
     """Update state using constant acceleration model."""
-    return extended.update(x_prediction, cov_prediction, observation_model,
+    return extended.update(state_prediction, cov_prediction, observation_model,
                            observation_jacobian, measurement, R, dt)
 
 
-def normalized_innovation(x_prediction, cov_prediction, measurement, dt):
+def normalized_innovation(state_prediction, cov_prediction, measurement, dt):
     """Normalized innovation using constant acceleration model."""
-    return extended.normalized_innovation(x_prediction, cov_prediction,
+    return extended.normalized_innovation(state_prediction, cov_prediction,
                                           observation_model,
                                           observation_jacobian, measurement,
                                           R, dt)
 
 
-def defaultStateVector(detection, default_direction=0):
+def default_state(detection, default_direction=0):
     """Initialize a new state vector based on the first detection."""
-    default_state = np.ndarray((1, 9),
-                               buffer=np.asarray((detection[0][0],
+    state = np.ndarray((1, 9), buffer=np.asarray((detection[0][0],
                                                   detection[0][1],
                                                   detection[0][2], 1, 0.1,
                                                   default_direction, 0, 0,
                                                   detection[0][3])))
 
-    return default_state
+    return state
 
 
-def state_to_position(state):
+def state2position(state):
+    """Get a position given a state."""
     position_states = np.asarray((0, 1, 2))
     position = state[:, position_states]
 
     return position
 
 
-def detection_to_position(detection):
+def measurement2position(detection):
+    """Get a position given a measurement."""
     position_detections = np.asarray((0, 1, 2))
     position = detection[:, position_detections]
 
     return position
-
-
-def track(single_obj_det, time_steps, default_state, default_cov):
-    return extended.track(single_obj_det, time_steps, state_transition_model,
-                          state_transition_jacobian, observation_model,
-                          observation_jacobian, default_state, default_cov, v,
-                          R)

@@ -10,7 +10,7 @@ from tracking.visualize.pointcloud import init_point_cloud, update_point_cloud
 from tracking.visualize.detections import init_detections, update_detections
 from tracking.visualize.tracks import init_tracks, update_tracks
 from tracking.association.association_tracking import track_multiple_objects
-from tracking.filter.bicycle import predict, update, defaultStateVector, normalized_innovation, state_to_position, detection_to_position
+from tracking.filter import bicycle
 
 
 DATA_FILE = "data/data_109.h5"
@@ -27,8 +27,8 @@ det_sequence = load_detections(DATA_FILE)
 
 # Initiate tracking
 
-def specificDefaultStateVector(state):
-    return defaultStateVector(state, DEFAULT_ANGLE)
+def specificdefault_state(state):
+    return bicycle.default_state(state, DEFAULT_ANGLE)
 
 
 camera = h5py.File(DATA_FILE, 'r')
@@ -50,10 +50,7 @@ def camera_detections():
 timestamps = iter(np.asarray(camera["Timestamp"]))
 
 tracks_sequence = track_multiple_objects(camera_detections(), timestamps,
-                                         predict, update,
-                                         normalized_innovation,
-                                         specificDefaultStateVector,
-                                         state_to_position)
+                                         bicycle)
 
 # Initiate visualization
 visualizer = o3d.visualization.VisualizerWithKeyCallback()

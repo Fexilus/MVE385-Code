@@ -1,29 +1,34 @@
-"""A basic Kalman filter."""
+"""A basic Kalman filter.
+The filter needs an associated motion model to run, characterized by the
+variables F, G, Q, H and R. The recommended way to implement this is by
+creating a module that "overloads" the functions defined here. See 
+const_acceleration.py as a reference.
+"""
 import numpy as np
 
 
-def predict(x_current, cov_current, F, G, Q):
+def predict(state_current, cov_current, F, G, Q):
     """Predict new states of object."""
-    x_prediction = np.matmul(F, x_current.T).T # + B*u
-    cov_prediction = np.matmul(np.matmul(F, cov_current), F.transpose()) \
-                     + np.matmul(np.matmul(G, Q), G.transpose())
+    state_prediction = np.matmul(F, state_current.T).T # + B*u
+    cov_prediction = np.matmul(np.matmul(F, cov_current), F.T) \
+                     + np.matmul(np.matmul(G, Q), G.T)
 
-    return (x_prediction, cov_prediction)
+    return (state_prediction, cov_prediction)
 
 
-def update(x_prediction, cov_prediction, measurement, H, R):
+def update(state_prediction, cov_prediction, measurement, H, R):
     """Update prediction based on measurement."""
     # The innovation
-    residual = measurement - np.matmul(H,x_prediction.T).T
+    residual = measurement - np.matmul(H,state_prediction.T).T
     residual_cov = np.matmul(H,np.matmul(cov_prediction,H.T)) + R
 
     # Kalman gain
     W = np.matmul(cov_prediction, np.matmul(H.T, np.linalg.inv(residual_cov)))
 
-    x_updated = x_prediction + np.matmul(W, residual.T).T
-    cov_updated = cov_prediction - np.matmul(W, np.matmul(residual_cov,W.transpose()))
+    state_updated = state_prediction + np.matmul(W, residual.T).T
+    cov_updated = cov_prediction - np.matmul(W, np.matmul(residual_cov, W.T))
 
-    return (x_updated, cov_updated)
+    return (state_updated, cov_updated)
 
 
 def normalized_innovation(state_prediction, cov_prediction, measurement, H, R):

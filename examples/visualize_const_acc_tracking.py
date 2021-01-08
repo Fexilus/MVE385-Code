@@ -10,7 +10,7 @@ from tracking.visualize.pointcloud import init_point_cloud, update_point_cloud
 from tracking.visualize.detections import init_detections, update_detections
 from tracking.visualize.tracks import init_tracks, update_tracks
 from tracking.association.association_tracking import track_multiple_objects
-from tracking.filter.const_acceleration import predict, update, defaultStateVector, normalized_innovation, state_to_position, detection_to_position
+from tracking.filter import const_acceleration
 
 
 DATA_FILE = "data/data_109.h5"
@@ -42,9 +42,7 @@ def camera_detections():
 timestamps = iter(np.asarray(camera["Timestamp"]))
 
 tracks_sequence = track_multiple_objects(camera_detections(), timestamps,
-                                         predict, update,
-                                         normalized_innovation,
-                                         defaultStateVector, state_to_position)
+                                         const_acceleration)
 
 # Initiate visualization
 visualizer = o3d.visualization.VisualizerWithKeyCallback()
