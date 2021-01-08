@@ -18,8 +18,13 @@ def associate_NN(prediction, detections, cov_prediction, norm_innovation, dt):
     closest_neighbour_ind = np.argmin(innovation_dist)
     closest_neighbour = detections[closest_neighbour_ind]
 
-    # TODO: set a cut-off for how far away the next detection can be
-    if innovation_dist[closest_neighbour_ind] > 10:
+    # TODO: This is just a quick fix, stringency should maybe be introduced
+    mean_log_dist = np.mean(np.log(innovation_dist))
+    min_log_dist = np.log(innovation_dist[closest_neighbour_ind])
+    std_dev_log_dist = np.std(np.log(innovation_dist))
+
+    print(str((mean_log_dist - min_log_dist) / std_dev_log_dist))
+    if mean_log_dist - min_log_dist < std_dev_log_dist:
         # Send back that there is no associated neighbour
         closest_neighbour = None
     # TODO how to handle new detections
