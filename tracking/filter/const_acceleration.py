@@ -13,35 +13,41 @@ Q = np.array([[1, 0, 0],
               [0, 0, 1]])
 
 # The measurement model
-H = np.array([[1, 0, 0, 0, 0, 0],
-              [0, 0, 1, 0, 0, 0],
-              [0, 0, 0, 0, 1, 0]])
+H = np.array([[1, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 1, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 1, 0, 0]])
 
 # Observation noise
 R = np.array([[1, 0, 0],
               [0, 1, 0],
               [0, 0, 1]])
 
-NUM_STATES = 6
+NUM_STATES = 9
 NUM_MEASUREMENTS = 3
 
 
 def predict(state_current, cov_current, dt):
     """Predict state using constant acceleration model."""
     # The model dynamics
-    F = np.array([[1, dt, 0,  0, 0,  0],
-                  [0,  1, 0,  0, 0,  0],
-                  [0,  0, 1, dt, 0,  0],
-                  [0,  0, 0,  1, 0,  0],
-                  [0,  0, 0,  0, 1, dt],
-                  [0,  0, 0,  0, 0,  1]])
+    F = np.array([[1, dt, dt**2/2, 0,  0,       0, 0,  0,        0],
+                  [0,  1,      dt, 0,  0,       0, 0,  0,        0],
+                  [0,  0,       1, 0,  0,       0, 0,  0,        0],
+                  [0,  0,       0, 1, dt, dt**2/2, 0,  0,        0],
+                  [0,  0,       0, 0,  1,      dt, 0,  0,        0],
+                  [0,  0,       0, 0,  0,       1, 0,  0,        0],
+                  [0,  0,       0, 0,  0,       0, 1, dt,  dt**2/2],
+                  [0,  0,       0, 0,  0,       0, 0,  1,       dt],
+                  [0,  0,       0, 0,  0,       0, 0,  0,        1]])
     # Model dynamics noise matrix
     G = np.array([[dt**2/2,       0,       0],
                   [     dt,       0,       0],
+                  [      1,       0,       0],
                   [      0, dt**2/2,       0],
                   [      0,      dt,       0],
+                  [      0,       1,       0],
                   [      0,       0, dt**2/2],
-                  [      0,       0,      dt]])
+                  [      0,       0,      dt],
+                  [      0,       0,       1]])
 
     return basic.predict(state_current, cov_current, F, G, Q)
 
@@ -61,14 +67,14 @@ def normalized_innovation(state_pred, cov_pred, measurement, dt):
 def default_state(measurement):
     """Initialize a new state vector based on an initial measurement."""
     state = np.zeros((1, NUM_STATES))
-    state[0][(0, 2, 4),] = measurement[0]
+    state[0][(0, 3, 6),] = measurement[0]
 
     return state
 
 
 def state2position(state):
     """Get a position given a state."""
-    position_states = np.asarray((0, 2, 4))
+    position_states = np.asarray((0, 3, 6))
     position = state[:, position_states]
 
     return position
