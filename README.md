@@ -2,7 +2,7 @@
 The code for the Viscando project 4 (Enhanced object tracking) 2020 as part of MVE385 at Chalmers University of Technology.
 
 ## Project structure
-The code is separated into two parts (for now at least).
+The code is separated into two parts.
 
 The computational parts of the code is formatted as a package located in `/tracking`.
 The `pyproject.toml`, `setup.cgf` and `setup.py` files specify the dependencies and other information about the package.
