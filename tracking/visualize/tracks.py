@@ -35,9 +35,9 @@ def make_geometries_from_dict(tracks, old_track_geometries=None,
     return track_line_sets
 
 
-def init_tracks(visualizer, tracks_sequence):
+def init_tracks(visualizer, tracks, palette=track_palette):
     """Add detections in proper form to open3d visualizer."""
-    tracks_geometries = make_geometries_from_dict(next(tracks_sequence))
+    tracks_geometries = make_geometries_from_dict(tracks, palette=palette)
 
     for _, geometry in tracks_geometries.items():
         visualizer.add_geometry(geometry)
@@ -45,13 +45,14 @@ def init_tracks(visualizer, tracks_sequence):
     return tracks_geometries
 
 
-def update_tracks(visualizer, old_geometries, tracks_sequence):
+def update_tracks(visualizer, old_geometries, new_tracks,
+                  palette=track_palette):
     """Update detections that has a previous geometry object."""
     for _, geometry in old_geometries.items():
         visualizer.remove_geometry(geometry, False)
 
-    new_geometries = make_geometries_from_dict(next(tracks_sequence),
-                                               old_geometries)
+    new_geometries = make_geometries_from_dict(new_tracks, old_geometries,
+                                               palette=palette)
 
     for _, geometry in new_geometries.items():
         visualizer.add_geometry(geometry, False)

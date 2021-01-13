@@ -24,7 +24,7 @@ def associate_NN(prediction, measurements, cov_prediction, filter_impl, dt):
     min_log_dist = np.log(innovation_dist[closest_neighbour_ind])
     std_dev_log_dist = np.std(np.log(innovation_dist))
 
-    print(str((mean_log_dist - min_log_dist) / std_dev_log_dist))
+    #print(str((mean_log_dist - min_log_dist) / std_dev_log_dist))
     if mean_log_dist - min_log_dist < std_dev_log_dist:
         # Send back that there is no associated neighbour
         closest_neighbour = None
@@ -235,4 +235,4 @@ def track_multiple_objects(measurements, timestamps, filter_impl):
 
         last_timestamp = timestamp
 
-        yield current_tracks
+        yield current_tracks, terminated_tracks
