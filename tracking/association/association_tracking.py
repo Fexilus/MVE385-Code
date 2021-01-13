@@ -45,8 +45,8 @@ def count_times_unassociated(track):
     return count
 
 
-def initialize_tracks(next_measurements, associated_measurements, cov_init, time,
-                      id_generator, filter_impl):
+def initialize_tracks(next_measurements, associated_measurements, cov_init,
+                      time, id_generator, filter_impl):
     new_tracks = defaultdict(list)
     new_states = {}
     new_cov = defaultdict(lambda: cov_init)
@@ -128,7 +128,7 @@ def track_all_objects(current_tracks, current_states, current_cov,
             del current_states[index]
             del current_cov[index]
 
-    return (current_tracks, terminated_tracks, associated_measurements)
+    return associated_measurements
 
 
 def add_initialized_to_current_tracks(initialized_tracks, current_tracks,
@@ -149,9 +149,6 @@ def add_initialized_to_current_tracks(initialized_tracks, current_tracks,
         initialized_tracks.pop(ind)
         initialized_states.pop(ind)
         initialized_cov.pop(ind)
-
-    return (initialized_tracks, current_tracks, initialized_states,
-            current_states, initialized_cov, current_cov)
 
 
 def track_multiple_objects(measurements, timestamps, filter_impl):
@@ -202,33 +199,37 @@ def track_multiple_objects(measurements, timestamps, filter_impl):
         # Assume vector x = [px, vx, py, vy, pz, vz].T
         dt = timestamp - last_timestamp
 
-        current_tracks, terminated_tracks, associated_measurements = \
-            track_all_objects(current_tracks, current_states, current_cov,
-                              next_measurements, terminated_tracks, timestamp,
-                              dt, filter_impl)
+        associated_measurements = track_all_objects(current_tracks,
+                                                    current_states,
+                                                    current_cov,
+                                                    next_measurements,
+                                                    terminated_tracks,
+                                                    timestamp, dt, filter_impl)
 
         # Track the tracks under initialization and add to current tracks if
         # they survive for three consecutive frames.
         tempdict = defaultdict(list)
         if len(initialized_tracks) > 0:
-            initialized_tracks, _, associated_measurements = \
-                track_all_objects(initialized_tracks, initialized_states,
-                                  initialized_cov, next_measurements, tempdict,
-                                  timestamp, dt, filter_impl)
+            associated_measurements = track_all_objects(initialized_tracks,
+                                                        initialized_states,
+                                                        initialized_cov,
+                                                        next_measurements,
+                                                        tempdict, timestamp,
+                                                        dt, filter_impl)
 
-            initialized_tracks, current_tracks, initialized_states, \
-                current_states, initialized_cov, current_cov = \
-                add_initialized_to_current_tracks(initialized_tracks,
-                                                  current_tracks,
-                                                  initialized_states,
-                                                  current_states,
-                                                  initialized_cov, current_cov)
+            add_initialized_to_current_tracks(initialized_tracks,
+                                              current_tracks,
+                                              initialized_states,
+                                              current_states, initialized_cov,
+                                              current_cov)
 
 
         # Check unassociated measurements and add these to initializing
-        new_tracks, new_states, new_cov = \
-            initialize_tracks(next_measurements, associated_measurements,
-                              cov_init, timestamp, id_generator, filter_impl)
+        new_tracks, new_states, new_cov = initialize_tracks(next_measurements,
+                                                            associated_measurements,
+                                                            cov_init, timestamp,
+                                                            id_generator,
+                                                            filter_impl)
         initialized_tracks.update(new_tracks)
         initialized_states.update(new_states)
         initialized_cov.update(new_cov)
