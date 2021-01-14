@@ -60,7 +60,7 @@ cur_tracks, term_tracks = next(tracks_seq)
 
 cur_tracks_geometry = init_tracks(visualizer, cur_tracks)
 
-term_track_palette = itertools.cycle(sns.color_palette("muted"))
+term_track_palette = itertools.cycle(sns.color_palette("husl", 15))
 term_tracks_geometry = init_tracks(visualizer, term_tracks,
                                    palette=term_track_palette)
 

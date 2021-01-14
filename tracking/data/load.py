@@ -10,7 +10,7 @@ import seaborn as sns
 
 # Set up a color palettes as iterables
 point_cloud_palette = itertools.cycle(sns.color_palette("pastel"))
-track_palette = itertools.cycle(sns.color_palette("bright"))
+track_palette = itertools.cycle(sns.color_palette("hls", 15))
 no_palette = itertools.cycle([(1.0, 1.0, 1.0)])
 
 
