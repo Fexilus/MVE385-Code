@@ -16,7 +16,7 @@ def init_point_cloud(visualizer, pcloud_geometry, bounding_box=None):
     else:
         pcloud_geometry_final = pcloud_geometry
 
-    visualizer.add_geometry(pcloud_geometry_final)
+    visualizer.add_geometry("Point cloud", pcloud_geometry_final)
 
     return pcloud_geometry_final
 

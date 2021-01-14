@@ -55,8 +55,9 @@ tracks_sequence = track_multiple_objects(camera_detections(), timestamps,
                                          bicycle)
 
 # Initiate visualization
-visualizer = o3d.visualization.VisualizerWithKeyCallback()
-visualizer.create_window(width=800, height=600)
+o3d.visualization.gui.Application.instance.initialize()
+visualizer = o3d.visualization.O3DVisualizer("Tracking: Bicycle model",
+                                             width=800, height=600)
 
 pcloud_geometry = init_point_cloud(visualizer, next(pcloud_sequence),
                                    bounding_box)
@@ -79,24 +80,15 @@ def normalize(vector):
     return vector / np.linalg.norm(vector)
 
 
-front       = np.asarray((3.0, 4.0, -1.0))
-lookat      = normalize(np.asarray((0.1, 0.0, 0.0)))
+lookat      = np.asarray((0.0, 0.0, 0.0))
 world_up    = np.asarray((0.0, 0.0, -1.0))
-camera_side = normalize(np.cross(front, world_up))
-camera_up   = np.cross(camera_side, front)
-zoom        = 0.25
+camera_pos  = np.asarray((9.5, 28.5, -4.70843))
 
-view_control = visualizer.get_view_control()
-view_control.set_front(front)
-view_control.set_lookat(lookat)
-view_control.set_up(camera_up)
-view_control.set_zoom(zoom)
-view_control.translate(150, 0)
+visualizer.scene.camera.look_at(lookat, camera_pos, world_up)
 
 # Set default render options
-render_options = visualizer.get_render_option()
-render_options.line_width = 15.0
-render_options.point_size = 2.0
+visualizer.line_width = 6
+visualizer.point_size = 2
 
 
 def next_frame(visualizer):
@@ -119,10 +111,8 @@ def next_frame(visualizer):
                                          term_tracks,
                                          palette=term_track_palette)
 
-    # Indicate that the geometry needs updating
-    return True
 
+visualizer.add_action("Next frame", next_frame)
 
-visualizer.register_key_callback(32, next_frame)
-
-visualizer.run()
+o3d.visualization.gui.Application.instance.add_window(visualizer)
+o3d.visualization.gui.Application.instance.run()
