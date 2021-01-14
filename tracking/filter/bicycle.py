@@ -138,11 +138,12 @@ def normalized_innovation(state_prediction, cov_prediction, measurement, dt):
                                           R, dt)
 
 
-def default_state(detection, default_direction=0):
+def default_state(detection, default_direction=0, default_speed=0):
     """Initialize a new state vector based on the first detection."""
     state = np.ndarray((1, 9), buffer=np.asarray((detection[0][0],
                                                   detection[0][1],
-                                                  detection[0][2], 1, 0.1,
+                                                  detection[0][2],
+                                                  default_speed, 0,
                                                   default_direction, 0, 0,
                                                   detection[0][3])))
 

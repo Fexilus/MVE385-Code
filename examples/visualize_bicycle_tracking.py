@@ -30,7 +30,7 @@ det_sequence = load_detections(DATA_FILE)
 # Initiate tracking
 
 def specificdefault_state(state):
-    return bicycle.default_state(state, DEFAULT_ANGLE)
+    return bicycle.default_state(state, default_direction=DEFAULT_ANGLE)
 
 
 camera = h5py.File(DATA_FILE, 'r')
