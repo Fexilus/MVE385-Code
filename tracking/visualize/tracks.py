@@ -2,7 +2,7 @@
 import numpy as np
 import open3d as o3d
 
-from ..data.load import track_palette
+from ..data.loadmodels import track_palette
 
 
 def make_geometries_from_dict(tracks, old_track_geometries=None,

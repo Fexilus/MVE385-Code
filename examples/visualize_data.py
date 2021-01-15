@@ -2,7 +2,7 @@
 import numpy as np
 import open3d as o3d
 
-from tracking.data.load import load_point_clouds, load_detections, load_tracks
+from tracking.data.loadmodels import load_point_clouds, load_detections, load_tracks
 
 
 data_files = ["data/data_109.h5",

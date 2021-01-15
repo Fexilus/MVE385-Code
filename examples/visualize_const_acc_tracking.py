@@ -8,7 +8,7 @@ import open3d as o3d
 import h5py
 import seaborn as sns
 
-from tracking.data.load import load_point_clouds, load_detections
+from tracking.data.loadmodels import load_point_clouds, load_detections
 from tracking.visualize.pointcloud import init_point_cloud, update_point_cloud
 from tracking.visualize.detections import init_detections, update_detections
 from tracking.visualize.tracks import init_tracks, update_tracks
