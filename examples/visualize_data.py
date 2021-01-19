@@ -24,7 +24,7 @@ pclouds = [load_point_clouds(file, min_security=5) for file in data_files]
 camera_detections = [load_detections(file) for file in data_files]
 camera_tracks = [load_tracks(file) for file in data_files]
 
-visualizer = o3d.visualization.Visualizer()
+visualizer = o3d.visualization.VisualizerWithKeyCallback()
 visualizer.create_window(width=800, height=600)
 
 # Add point cloud objects to be used in render
@@ -64,8 +64,10 @@ render_options = visualizer.get_render_option()
 render_options.line_width = 15.0
 render_options.point_size = 2.0
 
-for i in range(800):
+def next_frame(visualizer):
+    """Callback function to progress in frame sequence."""
     # Update point clouds
+    global pc_geometries
     for pcloud, geometry in zip(pclouds, pc_geometries):
         cur_pcloud = next(pcloud).crop(bounding_box)
         geometry.points = cur_pcloud.points
@@ -73,6 +75,7 @@ for i in range(800):
         visualizer.update_geometry(geometry)
 
     # Remove old detections
+    global det_geometries
     for geometries in det_geometries:
         for geometry in geometries:
             visualizer.remove_geometry(geometry, False)
@@ -88,13 +91,14 @@ for i in range(800):
         det_geometries += [cur_detections]
     
     # Remove old tracks
+    global tr_geometries
     for geometries in tr_geometries:
         for geometry in geometries:
             visualizer.remove_geometry(geometry, False)
 
     tr_geometries = []
 
-    # Add new detections
+    # Add new tracks
     for tracks in camera_tracks:
         cur_tracks = next(tracks)
         for track in cur_tracks:
@@ -102,6 +106,9 @@ for i in range(800):
 
         tr_geometries += [cur_tracks]
 
-    # Update frame
-    visualizer.poll_events()
-    visualizer.update_renderer()
+    # Indicate that the geometry needs updating
+    return True
+
+
+visualizer.register_key_callback(32, next_frame)
+visualizer.run()
